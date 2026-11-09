@@ -1,45 +1,41 @@
-.page-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 22px;
-}
-.page-heading h2 {
-  margin: 0;
-}
-.page-heading p {
-  margin: 6px 0 0;
-}
-.acciones {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.low-stock {
-  color: #ae5711;
-}
-.pagination {
-  display: flex;
-  justify-content: space-between;
-  gap: 15px;
-  padding: 20px;
-  align-items: center;
-}
-.pagination > div {
-  display: flex;
-  gap: 15px;
-  align-items: center;
-}
-td small {
-  display: block;
-  color: var(--muted);
-  margin-top: 4px;
-}
-@media (max-width: 650px) {
-  .page-heading,
-  .pagination {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-}
+.panel-toolbar { flex-wrap:wrap; }
+.search-field,.filter-controls,.product-card-meta,.product-card-pricing-stock,.pagination,.pagination>div,.detail-actions-row { display:flex; align-items:center; gap:10px; }
+.search-field { border:1px solid var(--line); border-radius:8px; padding:0 12px; min-height:42px; flex:1 1 240px; }
+.search-field input { width:100%; border:0; padding:8px 0; background:transparent; }
+.filter-controls { flex-wrap:wrap; }
+.filter-controls select { width:auto; font-size:14px; }
+.catalog-container { padding:20px; border-block:1px solid var(--line); }
+.products-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr)); gap:20px; }
+.product-card { border:1px solid var(--line); border-radius:12px; overflow:hidden; display:flex; flex-direction:column; }
+.product-inactivo { opacity:.72; border-style:dashed; }
+.product-card-media,.detail-overview-media { height:160px; display:flex; align-items:center; justify-content:center; padding:14px; overflow:hidden; }
+.product-card-media { position:relative; border-bottom:1px solid var(--line); }
+.product-card-media img,.detail-overview-media img { width:100%; height:100%; min-width:0; min-height:0; object-fit:contain; }
+.product-card-badge { position:absolute; top:10px; right:10px; font-size:12px; padding:3px 10px; }
+.product-card-body { padding:16px; display:flex; flex-direction:column; flex:1; }
+.product-card-meta,.product-card-pricing-stock,.pagination { justify-content:space-between; }
+.product-card-meta,.stock-min,.stat-label,.stat-sub { font-size:12px; color:var(--muted); }
+.product-card-title { font-size:18px; margin:6px 0 12px; overflow-wrap:anywhere; }
+.product-card-pricing-stock { margin-top:auto; padding-top:12px; border-top:1px solid var(--line); }
+.product-card-price { font-size:22px; font-weight:700; color:var(--azul); }
+.product-card-stock { text-align:right; }
+.stock-qty,.stock-min,.stat-label,.stat-sub,.stat-val { display:block; }
+.low-stock { color:#a44716; }
+.product-card-alert { margin-top:10px; padding:6px; border-radius:6px; background:#fff0b9; color:#755400; font-size:12px; }
+.product-card-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+.btn-detail { background:#f0eefb; color:var(--azul); }
+.pagination { padding:20px; }
+.detail-overview { display:grid; grid-template-columns:170px 1fr; gap:20px; padding:16px; border:1px solid var(--line); border-radius:10px; margin-bottom:24px; }
+.detail-stats-grid,.ajuste-stock-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:14px 0; }
+.stat-val { font-size:18px; color:var(--azul); }
+.movements-container,.detail-upload-section { margin-block:20px; }
+.movements-header { margin-bottom:12px; }
+.empty-movements { padding:24px; background:var(--canvas); border-radius:8px; }
+.movements-table-wrap { max-height:240px; }
+.movements-table-wrap th,.movements-table-wrap td { padding:10px 14px; font-size:13px; }
+.ajuste-form { display:flex; flex-direction:column; gap:16px; margin-top:16px; }
+.ajuste-form textarea { width:100%; border:1px solid var(--line); background:#f3f1ff; border-radius:8px; padding:10px; font:inherit; resize:vertical; }
+.diferencia-badge { padding:10px; border-radius:8px; }
+.diferencia-positiva { background:#ecfdf5; color:#065f46; }
+.diferencia-negativa { background:#fef2f2; color:#991b1b; }
+@media(max-width:768px) { .page-heading,.pagination,.panel-toolbar { align-items:flex-start; flex-direction:column; } .detail-overview { grid-template-columns:1fr; } .search-field { flex:0 0 auto; width:100%; } }

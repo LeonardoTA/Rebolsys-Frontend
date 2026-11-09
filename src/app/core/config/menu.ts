@@ -13,5 +13,5 @@ export const MENU: MenuItem[] = [
   },
   { etiqueta: 'Registrar reserva', ruta: '/reservas', icono: 'calendar' },
   { etiqueta: 'Registrar venta producto', ruta: '/ventas', icono: 'cart' },
-  { etiqueta: 'Productos', ruta: '/productos', icono: 'box' },
+  { etiqueta: 'Mantenimiento', ruta: '/mantenimiento', icono: 'settings' },
 ];

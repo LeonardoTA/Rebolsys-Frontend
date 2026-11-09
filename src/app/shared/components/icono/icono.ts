@@ -7,6 +7,7 @@ import { Component, input } from '@angular/core';
 export class Icon {
   name = input('bed');
   paths: Record<string, string> = {
+    settings: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M12 2v3 M12 19v3 M2 12h3 M19 12h3 M5 5l2 2 M17 17l2 2 M5 19l2-2 M17 7l2-2',
     cart: 'M3 4h3l3 12h10l3-9H7 M10 21h.01 M18 21h.01',
     box: 'm3 7 9-4 9 4v10l-9 4-9-4z M3 7l9 5 9-5 M12 12v9 M8 5l9 5',
     bag: 'M5 7h14l2 14H3z M9 8V5a3 3 0 0 1 6 0v3',

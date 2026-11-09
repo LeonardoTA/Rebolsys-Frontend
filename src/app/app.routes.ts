@@ -38,12 +38,20 @@ export const routes: Routes = [
           ),
       },
       {
-        path: 'productos',
-        title: 'Productos · REBOLSYS',
+        path: 'mantenimiento',
+        title: 'Mantenimiento · REBOLSYS',
         loadChildren: () =>
-          import('./features/productos/productos.routes').then(
-            (m) => m.PRODUCTOS_ROUTES,
+          import('./features/mantenimiento/mantenimiento.routes').then(
+            (m) => m.MANTENIMIENTO_ROUTES,
           ),
+      },
+      {
+        path: 'productos',
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: '/mantenimiento/productos' },
+          { path: 'nuevo', redirectTo: '/mantenimiento/productos/nuevo' },
+          { path: ':id/editar', redirectTo: '/mantenimiento/productos/:id/editar' },
+        ],
       },
       {
         path: '**',

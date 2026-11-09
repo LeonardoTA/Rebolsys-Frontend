@@ -22,6 +22,7 @@ export class Header {
   );
   protected readonly titulo = computed(() => {
     const ruta = this.ruta();
+    if (ruta.startsWith('/mantenimiento')) return 'MANTENIMIENTO';
     if (ruta.includes('/productos/nuevo')) return 'AGREGAR PRODUCTO';
     if (ruta.includes('/productos') && ruta.includes('/editar'))
       return 'EDITAR PRODUCTO';
