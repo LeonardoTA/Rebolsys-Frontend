@@ -57,3 +57,8 @@ proxy.qa.json
 *.log
 *.bak
 *.zip
+
+# Configuración privada y cachés de este repositorio independiente
+/.work/
+/.local/
+**/*local-private*
