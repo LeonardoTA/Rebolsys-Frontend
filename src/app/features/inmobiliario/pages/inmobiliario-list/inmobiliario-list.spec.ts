@@ -1,16 +1,27 @@
-import '@angular/compiler';
-import { createEnvironmentInjector, runInInjectionContext } from '@angular/core';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { of, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
-import { InmobiliarioMantenimiento, generarClaveOperacion } from './inmobiliario';
-import { MantenimientoService } from '../../services/mantenimiento-service';
+import '@angular/compiler';
+import {
+  createEnvironmentInjector,
+  runInInjectionContext,
+} from '@angular/core';
+import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
+import { of, throwError } from 'rxjs';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { CatalogoService } from '../../../../core/services/catalogo-service';
 import { NotificacionService } from '../../../../core/services/notificacion.service';
-import { Item, ItemHistorial, TipoItem, HabitacionConfiguracion } from '../../models/mantenimiento.model';
+import { HabitacionConfiguracion } from '../../../habitaciones/models/habitacion.model';
+import { HabitacionService } from '../../../habitaciones/services/habitacion-service';
+import { TipoItem } from '../../../tipos-inmobiliario/models/tipo-item.model';
+import { TipoItemService } from '../../../tipos-inmobiliario/services/tipo-item-service';
+import { Item, ItemHistorial } from '../../models/inmobiliario.model';
+import { InmobiliarioService } from '../../services/inmobiliario-service';
+import { InmobiliarioList } from './inmobiliario-list';
+describe('InmobiliarioList - CU_22', () => {
+  const routerMock = { navigate: vi.fn().mockResolvedValue(true) };
+  let component: InmobiliarioList;
 
-describe('InmobiliarioMantenimiento (CU_22)', () => {
-  let component: InmobiliarioMantenimiento;
-  let mantenimientoMock: Partial<Record<keyof MantenimientoService, any>>;
+  let mantenimientoMock: any;
+
   let avisosMock: { mostrar: ReturnType<typeof vi.fn> };
 
   const itemAsignado: Item = {
@@ -48,23 +59,43 @@ describe('InmobiliarioMantenimiento (CU_22)', () => {
   ];
 
   beforeEach(() => {
+    routerMock.navigate.mockClear();
     avisosMock = { mostrar: vi.fn() };
     mantenimientoMock = {
       habitacionesTodas: vi.fn().mockReturnValue(of([])),
       tiposItem: vi.fn().mockReturnValue(of(tiposEjemplo)),
       operadores: vi.fn().mockReturnValue(of({ usuarios: operadoresEjemplo })),
-      items: vi.fn().mockReturnValue(of({ contenido: [itemAsignado, itemAlmacen], totalElementos: 2, totalPaginas: 1, pagina: 0, tamanio: 10, ultima: true })),
+      items: vi.fn().mockReturnValue(
+        of({
+          contenido: [itemAsignado, itemAlmacen],
+          totalElementos: 2,
+          totalPaginas: 1,
+          pagina: 0,
+          tamanio: 10,
+          ultima: true,
+        }),
+      ),
       asignarItem: vi.fn().mockReturnValue(of(itemAsignado)),
       desactivarItem: vi.fn().mockReturnValue(of(undefined)),
       guardarItem: vi.fn().mockReturnValue(of({ ...itemAlmacen, idItem: 30 })),
-      guardarTipoItem: vi.fn().mockReturnValue(of({ idTipoItem: 5, nombreItem: 'Frigobar' })),
+      guardarTipoItem: vi
+        .fn()
+        .mockReturnValue(of({ idTipoItem: 5, nombreItem: 'Frigobar' })),
       historialItem: vi.fn().mockReturnValue(of([])),
       conservarItem: vi.fn().mockReturnValue(of(itemAsignado)),
     };
 
     const injector = createEnvironmentInjector(
       [
-        { provide: MantenimientoService, useValue: mantenimientoMock },
+        { provide: InmobiliarioService, useValue: mantenimientoMock },
+        { provide: HabitacionService, useValue: mantenimientoMock },
+        { provide: TipoItemService, useValue: mantenimientoMock },
+        { provide: CatalogoService, useValue: mantenimientoMock },
+        { provide: Router, useValue: routerMock },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { queryParamMap: convertToParamMap({}) } },
+        },
         { provide: NotificacionService, useValue: avisosMock },
       ],
       {
@@ -73,7 +104,7 @@ describe('InmobiliarioMantenimiento (CU_22)', () => {
     );
 
     runInInjectionContext(injector, () => {
-      component = new InmobiliarioMantenimiento();
+      component = new InmobiliarioList();
     });
     component.ngOnInit();
   });
@@ -109,7 +140,7 @@ describe('InmobiliarioMantenimiento (CU_22)', () => {
       // Etapa 2: Desactivación física
       expect(mantenimientoMock.desactivarItem).toHaveBeenCalledWith(10);
       expect(avisosMock.mostrar).toHaveBeenCalledWith(
-        'Artículo retirado de la habitación y dado de baja correctamente. Su historial se conserva.'
+        'Artículo retirado de la habitación y dado de baja correctamente. Su historial se conserva.',
       );
       expect(component.modalBaja()).toBe(false);
     });
@@ -117,13 +148,20 @@ describe('InmobiliarioMantenimiento (CU_22)', () => {
     it('maneja fallo parcial en etapa 2: comunica retiro exitoso, no afirma baja completa y permite reintentar desactivación', () => {
       // Simular fallo en etapa 2
       mantenimientoMock.desactivarItem = vi.fn().mockReturnValue(
-        throwError(() => new HttpErrorResponse({ status: 500, statusText: 'Internal Server Error' }))
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 500,
+              statusText: 'Internal Server Error',
+            }),
+        ),
       );
 
       component.abrirBaja(itemAsignado);
       component.bajaCondicionFinal = 'FALTANTE';
       component.bajaIdUsuario = 2;
-      component.bajaObservacion = 'No se encuentra en la habitación durante checkout';
+      component.bajaObservacion =
+        'No se encuentra en la habitación durante checkout';
 
       component.ejecutarBaja();
 
@@ -155,7 +193,7 @@ describe('InmobiliarioMantenimiento (CU_22)', () => {
       expect(mantenimientoMock.asignarItem).not.toHaveBeenCalled();
       expect(mantenimientoMock.desactivarItem).toHaveBeenCalledWith(20);
       expect(avisosMock.mostrar).toHaveBeenCalledWith(
-        'Unidad desactivada correctamente. Su historial se conserva.'
+        'Unidad desactivada correctamente. Su historial se conserva.',
       );
     });
   });
@@ -169,7 +207,13 @@ describe('InmobiliarioMantenimiento (CU_22)', () => {
 
       // Simular error en etapa 1
       mantenimientoMock.asignarItem = vi.fn().mockReturnValue(
-        throwError(() => new HttpErrorResponse({ status: 504, statusText: 'Gateway Timeout' }))
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 504,
+              statusText: 'Gateway Timeout',
+            }),
+        ),
       );
 
       const clave1 = component.bajaClaveOperacion;
@@ -188,9 +232,13 @@ describe('InmobiliarioMantenimiento (CU_22)', () => {
       component.bajaObservacion = 'Observación inicial';
       const claveInicial = component.bajaClaveOperacion;
 
-      mantenimientoMock.asignarItem = vi.fn().mockReturnValue(
-        throwError(() => new HttpErrorResponse({ status: 500, statusText: 'Error' }))
-      );
+      mantenimientoMock.asignarItem = vi
+        .fn()
+        .mockReturnValue(
+          throwError(
+            () => new HttpErrorResponse({ status: 500, statusText: 'Error' }),
+          ),
+        );
       component.ejecutarBaja();
 
       // El usuario edita la observación
@@ -199,49 +247,6 @@ describe('InmobiliarioMantenimiento (CU_22)', () => {
       component.ejecutarBaja();
 
       expect(component.bajaClaveOperacion).not.toBe(claveInicial);
-    });
-  });
-
-  describe('Registro de unidad física con asignación posterior', () => {
-    it('conserva el id obtenido si falla la asignación posterior y ofrece reintentar sin duplicar alta', () => {
-      component.abrirRegistrar();
-      component.formNombreItem = 'Nuevo Televisor';
-      component.formIdTipoItem = 1;
-      component.formDestino = 'habitacion';
-      component.formIdHabitacion = 101;
-      component.formIdUsuario = 1;
-      component.formObservacion = 'Asignación al inaugurar habitación';
-
-      // Etapa 1 (guardarItem) retorna nuevo item con id 99
-      mantenimientoMock.guardarItem = vi.fn().mockReturnValue(
-        of({ ...itemAlmacen, idItem: 99, nombreItem: 'Nuevo Televisor' })
-      );
-      // Etapa 2 (asignarItem) falla
-      mantenimientoMock.asignarItem = vi.fn().mockReturnValue(
-        throwError(() => new HttpErrorResponse({ status: 409, statusText: 'Conflict' }))
-      );
-
-      component.guardarRegistro();
-
-      // Etapa 1 exitosa, ID conservado
-      expect(component.creadoIdItem()).toBe(99);
-      expect(component.registroExitoParcial()).toContain('ID: #99');
-      expect(component.registroError()).toContain('Error en la asignación');
-
-      // Reintento de la asignación: NO debe volver a llamar a guardarItem
-      mantenimientoMock.guardarItem.mockClear();
-      mantenimientoMock.asignarItem = vi.fn().mockReturnValue(of({ ...itemAsignado, idItem: 99 }));
-
-      component.guardarRegistro();
-
-      expect(mantenimientoMock.guardarItem).not.toHaveBeenCalled();
-      expect(mantenimientoMock.asignarItem).toHaveBeenCalledWith(99, expect.objectContaining({
-        idHabitacion: 101,
-        idUsuario: 1,
-      }));
-      expect(avisosMock.mostrar).toHaveBeenCalledWith(
-        'Artículo registrado y asignado a la habitación exitosamente.'
-      );
     });
   });
 
@@ -270,41 +275,19 @@ describe('InmobiliarioMantenimiento (CU_22)', () => {
         },
       ];
 
-      mantenimientoMock.historialItem = vi.fn().mockReturnValue(of(historialMock));
+      mantenimientoMock.historialItem = vi
+        .fn()
+        .mockReturnValue(of(historialMock));
 
       component.abrirDetalle(itemFaltante);
 
       expect(component.modalDetalle()).toBe(true);
-      expect(component.textoCondicion(itemFaltante.estadoActualItem)).toBe('Perdido/faltante');
+      expect(component.textoCondicion(itemFaltante.estadoActualItem)).toBe(
+        'Perdido/faltante',
+      );
       expect(mantenimientoMock.historialItem).toHaveBeenCalledWith(55);
       expect(component.historial()).toEqual(historialMock);
       expect(component.cargandoHistorial()).toBe(false);
-    });
-  });
-
-  describe('Creación de tipo de mobiliario con endpoint real', () => {
-    it('utiliza nombreItem para guardarTipoItem y actualiza el catálogo', () => {
-      component.abrirNuevoTipo();
-      component.nuevoTipoNombre = 'Frigobar';
-
-      component.guardarNuevoTipo();
-
-      expect(mantenimientoMock.guardarTipoItem).toHaveBeenCalledWith(null, 'Frigobar');
-      expect(avisosMock.mostrar).toHaveBeenCalledWith('Tipo "Frigobar" creado exitosamente.');
-      expect(component.modalNuevoTipo()).toBe(false);
-    });
-
-    it('valida que el nombre del tipo sea obligatorio y no exceda 30 caracteres', () => {
-      component.abrirNuevoTipo();
-      component.nuevoTipoNombre = '';
-      component.guardarNuevoTipo();
-      expect(component.nuevoTipoError()).toContain('obligatorio');
-      expect(mantenimientoMock.guardarTipoItem).not.toHaveBeenCalled();
-
-      component.nuevoTipoNombre = 'A'.repeat(31);
-      component.guardarNuevoTipo();
-      expect(component.nuevoTipoError()).toContain('30 caracteres');
-      expect(mantenimientoMock.guardarTipoItem).not.toHaveBeenCalled();
     });
   });
 
@@ -318,13 +301,18 @@ describe('InmobiliarioMantenimiento (CU_22)', () => {
 
       component.guardarAsignacion();
 
-      expect(mantenimientoMock.asignarItem).toHaveBeenCalledWith(20, expect.objectContaining({
-        idHabitacion: 102,
-        idUsuario: 1,
-        estadoActualItem: 'BUENO',
-        observacion: 'Asignación inicial habitación 102',
-      }));
-      expect(avisosMock.mostrar).toHaveBeenCalledWith('Artículo asignado a la habitación exitosamente.');
+      expect(mantenimientoMock.asignarItem).toHaveBeenCalledWith(
+        20,
+        expect.objectContaining({
+          idHabitacion: 102,
+          idUsuario: 1,
+          estadoActualItem: 'BUENO',
+          observacion: 'Asignación inicial habitación 102',
+        }),
+      );
+      expect(avisosMock.mostrar).toHaveBeenCalledWith(
+        'Artículo asignado a la habitación exitosamente.',
+      );
       expect(component.modalAsignacion()).toBe(false);
     });
 
@@ -348,12 +336,17 @@ describe('InmobiliarioMantenimiento (CU_22)', () => {
 
       component.guardarAsignacion();
 
-      expect(mantenimientoMock.asignarItem).toHaveBeenCalledWith(10, expect.objectContaining({
-        idHabitacion: null,
-        idUsuario: 2,
-        observacion: 'Retiro por renovación de habitación',
-      }));
-      expect(avisosMock.mostrar).toHaveBeenCalledWith('Artículo retirado de la habitación hacia almacén.');
+      expect(mantenimientoMock.asignarItem).toHaveBeenCalledWith(
+        10,
+        expect.objectContaining({
+          idHabitacion: null,
+          idUsuario: 2,
+          observacion: 'Retiro por renovación de habitación',
+        }),
+      );
+      expect(avisosMock.mostrar).toHaveBeenCalledWith(
+        'Artículo retirado de la habitación hacia almacén.',
+      );
       expect(component.modalAsignacion()).toBe(false);
     });
   });
@@ -367,12 +360,17 @@ describe('InmobiliarioMantenimiento (CU_22)', () => {
 
       component.guardarConservacion();
 
-      expect(mantenimientoMock.conservarItem).toHaveBeenCalledWith(10, expect.objectContaining({
-        idUsuario: 1,
-        estadoActualItem: 'EN_REPARACION',
-        observacion: 'Enviado a taller de carpintería',
-      }));
-      expect(avisosMock.mostrar).toHaveBeenCalledWith('Estado de conservación actualizado exitosamente.');
+      expect(mantenimientoMock.conservarItem).toHaveBeenCalledWith(
+        10,
+        expect.objectContaining({
+          idUsuario: 1,
+          estadoActualItem: 'EN_REPARACION',
+          observacion: 'Enviado a taller de carpintería',
+        }),
+      );
+      expect(avisosMock.mostrar).toHaveBeenCalledWith(
+        'Estado de conservación actualizado exitosamente.',
+      );
       expect(component.modalConservacion()).toBe(false);
     });
 
@@ -409,10 +407,12 @@ describe('InmobiliarioMantenimiento (CU_22)', () => {
 
       expect(component.filtroHabitacion).toBe(101);
       expect(component.habitacionSeleccionada()).toEqual(hab101);
-      expect(mantenimientoMock.items).toHaveBeenCalledWith(expect.objectContaining({
-        idHabitacion: 101,
-        pagina: 0,
-      }));
+      expect(mantenimientoMock.items).toHaveBeenCalledWith(
+        expect.objectContaining({
+          idHabitacion: 101,
+          pagina: 0,
+        }),
+      );
     });
 
     it('filtra por unidades sin asignar (almacén)', () => {
@@ -420,21 +420,25 @@ describe('InmobiliarioMantenimiento (CU_22)', () => {
 
       expect(component.filtroHabitacion).toBe('sin_asignar');
       expect(component.habitacionSeleccionada()).toBeNull();
-      expect(mantenimientoMock.items).toHaveBeenCalledWith(expect.objectContaining({
-        sinAsignar: true,
-        pagina: 0,
-      }));
+      expect(mantenimientoMock.items).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sinAsignar: true,
+          pagina: 0,
+        }),
+      );
     });
 
     it('gestiona paginación anterior y siguiente', () => {
-      mantenimientoMock.items = vi.fn().mockReturnValue(of({
-        contenido: [itemAsignado],
-        totalElementos: 20,
-        totalPaginas: 2,
-        pagina: 0,
-        tamanio: 10,
-        ultima: false,
-      }));
+      mantenimientoMock.items = vi.fn().mockReturnValue(
+        of({
+          contenido: [itemAsignado],
+          totalElementos: 20,
+          totalPaginas: 2,
+          pagina: 0,
+          tamanio: 10,
+          ultima: false,
+        }),
+      );
 
       component.pagina.set(1);
       component.paginaAnterior();
@@ -442,24 +446,6 @@ describe('InmobiliarioMantenimiento (CU_22)', () => {
 
       component.paginaSiguiente();
       expect(component.pagina()).toBe(1);
-    });
-  });
-
-  describe('Edición de datos básicos de la unidad física', () => {
-    it('actualiza nombre y tipo preservando estadoItem sin alterarlo desde el CRUD', () => {
-      component.abrirEditar(itemAsignado);
-      component.formNombreItem = 'Cama individual 01 Renombrada';
-      component.formIdTipoItem = 1;
-
-      component.guardarRegistro();
-
-      expect(mantenimientoMock.guardarItem).toHaveBeenCalledWith(10, {
-        nombreItem: 'Cama individual 01 Renombrada',
-        idTipoItem: 1,
-        estadoItem: 'En habitacion',
-      });
-      expect(avisosMock.mostrar).toHaveBeenCalledWith('Artículo actualizado correctamente.');
-      expect(component.modalRegistro()).toBe(false);
     });
   });
 });

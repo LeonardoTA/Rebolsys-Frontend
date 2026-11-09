@@ -9,3 +9,7 @@ export interface Catalogos {
   ocupantes: Catalogo[];
   pagos: Catalogo[];
 }
+
+export interface OperadoresCatalogos {
+  usuarios: Catalogo[];
+}

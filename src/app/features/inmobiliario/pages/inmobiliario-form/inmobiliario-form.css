@@ -1,0 +1,24 @@
+.form-page {
+  padding: 24px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+.label-with-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.exito-parcial {
+  background: #e9faed;
+  padding: 12px;
+  border: 1px solid #7bb68a;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+@media (max-width: 650px) {
+  .form-page {
+    padding: 16px;
+  }
+}

@@ -43,12 +43,14 @@ Los datos provienen de Oracle a través de la API. Los mensajes de validación d
 
 `app.config.ts` configura los proveedores y `app.routes.ts` carga las rutas por funcionalidad. `layout` contiene la estructura principal; cada módulo en `features` separa `models`, `services`, `pages` y sus componentes. Cada pantalla conserva sus archivos TypeScript, HTML y CSS. `core` agrupa servicios y utilidades; `shared` reúne componentes y directivas comunes.
 
+El mantenimiento sigue la organización por entidad de PharmaFrontEnd: habitaciones, inmobiliario y productos tienen sus propios modelos, servicios y rutas. Habitaciones e inmobiliario separan el listado del formulario de alta/edición en páginas `*-list` y `*-form`. `mantenimiento` queda como contenedor de navegación. Ver [estructura y equivalencias con Pharma](entregables/ESTRUCTURA-PHARMA.md).
+
 Las pantallas reutilizan los estilos, iconos, formularios y layout globales del equipo, adaptando Figma al contrato actual de la API. La descripción de habitaciones queda para otra iteración.
 
 La autenticación y los permisos se integrarán con el login del equipo: gerente para habitaciones e inmobiliario; recepcionista para productos. La pasarela de pagos y la emisión tributaria permanecen fuera de esta entrega; los comprobantes actuales son internos.
 
 ## Verificación y revisión
 
-`npm test -- --watch=false`: 65 pruebas aprobadas en 8 archivos. `npm run build`: compilación de producción sin advertencias. Las pruebas forman parte del repositorio. El runner usa un proceso para reducir memoria.
+`npm test -- --watch=false`: 71 pruebas aprobadas en 13 archivos. `npm run build`: compilación de producción sin advertencias. Las pruebas forman parte del repositorio. El runner usa un proceso para reducir memoria.
 
 La revisión del aporte se hace comparando `main...Dev-Tequen`. En `entregables/` se incluyen la matriz de los 12 requisitos, capturas y resultados de la integración con el backend y Oracle. Las credenciales, imágenes de la instancia, dependencias y compilaciones quedan excluidas de Git.

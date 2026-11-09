@@ -2,7 +2,7 @@
 
 Fecha: 8 de noviembre de 2026. Entorno local: Windows, Node 24, Java 25 compilando para Java 21, Maven, Angular 22 y Oracle real en `oracle-local`.
 
-## Resultados automáticos
+## Resultados automáticos de la entrega inicial
 
 | Verificación | Resultado |
 |---|---|
@@ -54,3 +54,13 @@ Capturas de la versión compilada:
 - [Inmobiliario](capturas/inmobiliario.png).
 
 El resultado detallado de los 17 controles HTTP y sus 36 solicitudes está en [VERIFICACION-API.json](VERIFICACION-API.json). Los datos de demostración conservados pertenecen al esquema local autorizado.
+
+## Reorganización por entidad — 9 de noviembre de 2026
+
+La versión reorganizada siguiendo PharmaFrontEnd aprueba **71 pruebas en 13 archivos**, sin casos omitidos, y compila para producción sin advertencias. Se conservaron los 65 casos anteriores, reubicados junto a sus páginas y servicios propietarios, y se añadieron 6 pruebas de integración del router.
+
+Las pruebas nuevas verifican la entrada directa a alta/edición, lectura del identificador de ruta, carga de datos actuales, bloqueo visual de OCUPADO, fotografía en edición, error 404 con reintento, rechazo de ID inválido y navegación listado → alta → cancelar → listado con recarga.
+
+En el navegador contra la API real se comprobó la navegación al formulario de habitación, un conflicto por número duplicado conservando los datos y el retorno al listado al cancelar. En el alta de inmobiliario se verificó la apertura del diálogo de tipo y su cierre con Escape dejando el formulario abierto. El ancho de página del formulario móvil fue de 390 píxeles en una ventana de 390 píxeles.
+
+La reorganización afecta al frontend. Los resultados backend de la tabla inicial corresponden a su validación previa; no se vuelve a afirmar una ejecución de esa suite por este cambio.
