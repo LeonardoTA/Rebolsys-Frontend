@@ -1,0 +1,97 @@
+:host {
+  display: block;
+}
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 280px;
+  background: #ddd;
+  padding: 26px 12px;
+  display: flex;
+  flex-direction: column;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  padding: 0 20px 38px;
+  color: #151515;
+}
+.brand svg {
+  width: 185px;
+  height: 92px;
+}
+.brand small {
+  font-size: 15px;
+  font-weight: 800;
+  width: 185px;
+}
+.brand em {
+  font:
+    italic 24px Georgia,
+    serif;
+  float: right;
+}
+.brand strong {
+  font:
+    italic 900 39px Arial,
+    sans-serif;
+  line-height: 1.1;
+}
+.brand > span {
+  margin-top: 12px;
+  font-size: 15px;
+}
+nav {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  margin-top: 12px;
+}
+nav a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px 12px;
+  min-height: 57px;
+  font-size: 15px;
+}
+nav a.active {
+  background: var(--azul);
+  color: #fff;
+}
+nav a:hover {
+  box-shadow: 0 2px 8px #0002;
+}
+nav span {
+  flex: 1;
+}
+.chevron {
+  display: none;
+  width: 15px;
+}
+.active .chevron {
+  display: inline-flex;
+}
+.sidebar-footer {
+  margin-top: auto;
+  padding: 24px 12px 6px;
+  text-align: center;
+  font-size: 13px;
+  color: #555;
+  line-height: 1.7;
+}
+@media (min-width: 1700px) {
+  .sidebar {
+    width: 320px;
+  }
+  nav a {
+    font-size: 17px;
+    padding: 18px 14px;
+  }
+  .brand {
+    padding-bottom: 54px;
+  }
+}

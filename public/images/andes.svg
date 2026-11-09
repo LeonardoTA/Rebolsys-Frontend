@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 500" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <linearGradient id="sky" x2="0" y2="1">
+          <stop stop-color="#9fc7e4" />
+          <stop offset="1" stop-color="#e2f0fa" />
+        </linearGradient>
+        <linearGradient id="rock" x2=".8" y2="1">
+          <stop stop-color="#c5c9d9" />
+          <stop offset="1" stop-color="#666d91" />
+        </linearGradient>
+      </defs>
+      <path fill="url(#sky)" d="M0 0h700v500H0z" />
+      <circle cx="520" cy="120" r="57" fill="#fff8df" />
+      <path
+        fill="#b1bdd0"
+        d="m0 310 100-120 75 90L330 110l140 170 100-100 130 130v190H0z"
+      />
+      <path
+        fill="url(#rock)"
+        d="m20 410 200-245 88 108L430 75l170 240 100-80v265H0z"
+      />
+      <path
+        fill="#ffffff"
+        d="m158 240 62-75 56 69-32-10-18 20-13-29-27 31z M350 204l80-129 80 114-38-13-22 25-21-47-30 61-19-20z"
+      />
+      <path fill="#696c8b" d="m429 75 2 121 92 161-42-149z" />
+      <path
+        fill="#75817f"
+        d="m0 414 134-81 150 62 137-63 132 35 147-59v192H0z"
+      />
+      <path fill="#435f5d" d="m0 458 185-39 195 41 147-55 173 35v60H0z" />
+      <path fill="#2b4b49" d="m0 492 180-20 220 23 300-17v22H0z" /></svg
+    >

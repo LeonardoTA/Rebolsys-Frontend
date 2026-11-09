@@ -1,0 +1,116 @@
+:host {
+  display: block;
+}
+.home-description {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 1200px;
+  margin: 0 auto 32px;
+  min-height: 310px;
+}
+.description-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 45px;
+  text-align: center;
+}
+.description-copy h2 {
+  font-size: 30px;
+  font-weight: 700;
+  margin-bottom: 24px;
+}
+.description-copy p {
+  font-size: 21px;
+  line-height: 1.6;
+}
+.home-description img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  min-height: 310px;
+}
+.home-information {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
+  background: white;
+  padding: 32px;
+  border-radius: 12px;
+}
+.home-information h2 {
+  background: #d3cfe8;
+  border-radius: 10px;
+  padding: 12px 10px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 25px;
+}
+.home-information p {
+  padding: 35px 10px 20px;
+  text-align: center;
+  font-size: 18px;
+  line-height: 1.65;
+}
+.home-information ul {
+  margin: 0;
+  padding: 28px 10px 10px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 27px;
+}
+.home-information li {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 18px;
+}
+.home-information app-icon {
+  width: 30px;
+  height: 30px;
+}
+@media (max-width: 1200px) {
+  .description-copy {
+    padding: 30px;
+  }
+  .description-copy p {
+    font-size: 18px;
+  }
+  .home-information {
+    gap: 20px;
+    padding: 24px;
+  }
+  .home-information h2 {
+    font-size: 22px;
+  }
+  .home-information p,
+  .home-information li {
+    font-size: 16px;
+  }
+}
+@media (max-width: 700px) {
+  .home-description,
+  .home-information {
+    grid-template-columns: 1fr;
+  }
+  .home-description {
+    margin-bottom: 22px;
+  }
+  .home-description img {
+    max-height: 250px;
+    min-height: 220px;
+  }
+  .description-copy {
+    padding: 32px 24px;
+  }
+  .home-information {
+    gap: 24px;
+  }
+  .home-information p {
+    padding: 22px 10px 0;
+  }
+}

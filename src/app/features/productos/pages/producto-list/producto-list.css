@@ -1,0 +1,45 @@
+.page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+.page-heading h2 {
+  margin: 0;
+}
+.page-heading p {
+  margin: 6px 0 0;
+}
+.acciones {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.low-stock {
+  color: #ae5711;
+}
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 20px;
+  align-items: center;
+}
+.pagination > div {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+td small {
+  display: block;
+  color: var(--muted);
+  margin-top: 4px;
+}
+@media (max-width: 650px) {
+  .page-heading,
+  .pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

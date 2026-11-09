@@ -1,0 +1,41 @@
+<aside class="sidebar no-print">
+  <a
+    class="brand"
+    routerLink="/inicio"
+    (click)="navegar.emit()"
+    aria-label="Real Bolognesi, inicio"
+  >
+    <svg
+      viewBox="0 0 240 108"
+      fill="none"
+      stroke="currentColor"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path
+        d="M9 91 50 44l18 19L106 9l38 48 20-21 65 55M74 84l32-64 29 48M86 50l18 9 11-20M29 69l21-17 13 21M152 67l12-21 28 31"
+        stroke-width="4"
+      />
+      <path
+        d="M94 96V58l29-16 31 21v33M121 96V53M136 69h9v10h-9zM136 84h9v10h-9zM100 68h12v12h-12zM100 86h12v10h-12zM1 101h238"
+        stroke-width="3"
+      />
+    </svg>
+    <small>HOSPEDAJE <em>Real</em></small>
+    <strong>Bolognesi</strong>
+    <span>Gestión de hospedaje</span>
+  </a>
+  <nav aria-label="Menú principal">
+    @for (item of menu; track item.ruta) {
+      <a
+        [routerLink]="item.ruta"
+        routerLinkActive="active"
+        (click)="navegar.emit()"
+      >
+        <app-icon [name]="item.icono" /><span>{{ item.etiqueta }}</span
+        ><app-icon class="chevron" name="chevron" />
+      </a>
+    }
+  </nav>
+  <p class="sidebar-footer">REBOLSYS · Real Bolognesi<br />Huaraz, Perú</p>
+</aside>

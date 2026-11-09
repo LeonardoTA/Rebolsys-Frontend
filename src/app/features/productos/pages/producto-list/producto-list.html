@@ -1,0 +1,178 @@
+<div class="page-heading no-print">
+  <div>
+    <h2>Productos de la tiendita</h2>
+    <p class="muted">Precios, existencias y catálogo de venta.</p>
+  </div>
+  <a routerLink="/productos/nuevo" class="button primary"
+    ><app-icon name="plus" />Agregar producto</a
+  >
+</div>
+<section class="panel">
+  <div class="panel-toolbar">
+    <div class="search-field">
+      <app-icon name="search" /><input
+        aria-label="Buscar productos"
+        [(ngModel)]="buscar"
+        (keyup.enter)="filtrar()"
+        placeholder="Buscar producto…"
+      />
+    </div>
+    <select
+      aria-label="Filtrar categoría"
+      [(ngModel)]="categoria"
+      (change)="filtrar()"
+    >
+      <option [ngValue]="null">Todas las categorías</option>
+      @for (c of categorias(); track c.idCategoria) {
+        <option [ngValue]="c.idCategoria">{{ c.nombreCategoria }}</option>
+      }</select
+    ><select
+      aria-label="Filtrar estado"
+      [(ngModel)]="estado"
+      (change)="filtrar()"
+    >
+      <option value="">Todos los estados</option>
+      <option value="ACTIVO">Activos</option>
+      <option value="INACTIVO">Inactivos</option></select
+    ><button class="button" (click)="filtrar()">Buscar</button>
+  </div>
+  @if (cargando()) {
+    <div class="loading-state">
+      <span class="spinner"></span>Cargando productos…
+    </div>
+  } @else if (error()) {
+    <div class="error-state" role="alert">
+      <p>{{ error() }}</p>
+      <button class="button" (click)="cargar()">Reintentar</button>
+    </div>
+  } @else {
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>PRODUCTO</th>
+            <th>CATEGORÍA</th>
+            <th>PRECIO</th>
+            <th>EXISTENCIAS</th>
+            <th>ESTADO</th>
+            <th>ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of respuesta()?.contenido; track p.idProducto) {
+            <tr>
+              <td>
+                <strong>{{ p.nombreProducto }}</strong
+                ><small>#{{ p.idProducto }}</small>
+              </td>
+              <td>{{ p.categoriaNombre }}</td>
+              <td>{{ p.precioActual | currency: 'PEN' : 'S/ ' }}</td>
+              <td>
+                <strong [class.low-stock]="p.stock <= p.stockMinimo"
+                  >{{ p.stock }} unidades</strong
+                ><small>Mínimo: {{ p.stockMinimo }}</small>
+              </td>
+              <td>
+                <span
+                  class="badge"
+                  [class.confirmada]="p.estadoProducto === 'ACTIVO'"
+                  >{{
+                    p.estadoProducto === 'ACTIVO' ? 'Activo' : 'Inactivo'
+                  }}</span
+                >
+              </td>
+              <td>
+                <div class="acciones">
+                  <a
+                    class="button small"
+                    [routerLink]="['/productos', p.idProducto, 'editar']"
+                    ><app-icon name="edit" />Editar</a
+                  ><button
+                    class="button small danger"
+                    [disabled]="p.estadoProducto === 'INACTIVO'"
+                    (click)="modalError.set(''); desactivando.set(p)"
+                  >
+                    Desactivar
+                  </button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6">
+                <div class="empty-state">
+                  <app-icon name="box" />
+                  <h3>Aún no hay productos para mostrar</h3>
+                  <p>
+                    Agrega tus productos y categorías desde el mantenimiento.
+                  </p>
+                  <a class="button primary" routerLink="/productos/nuevo"
+                    >Agregar producto</a
+                  >
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <span>{{ respuesta()?.totalElementos || 0 }} productos</span>
+      <div>
+        <button
+          class="button small"
+          [disabled]="pagina === 0"
+          (click)="pagina = pagina - 1; cargar()"
+        >
+          Anterior</button
+        ><span
+          >Página {{ respuesta()?.totalPaginas ? pagina + 1 : 0 }} de
+          {{ respuesta()?.totalPaginas || 0 }}</span
+        ><button
+          class="button small"
+          [disabled]="respuesta()?.ultima ?? true"
+          (click)="pagina = pagina + 1; cargar()"
+        >
+          Siguiente
+        </button>
+      </div>
+    </div>
+  }
+</section>
+@if (desactivando(); as p) {
+  <div class="modal-backdrop" (click)="!ocupado() && desactivando.set(null)">
+    <section
+      class="modal"
+      appDialog
+      (dialogEscape)="!ocupado() && desactivando.set(null)"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="desactivar-titulo"
+      (click)="$event.stopPropagation()"
+    >
+      <h2 id="desactivar-titulo">Desactivar producto</h2>
+      <p>
+        {{ p.nombreProducto }} dejará de aparecer en nuevas ventas. Las ventas y
+        movimientos anteriores se conservarán.
+      </p>
+      @if (modalError()) {
+        <p class="error-box">{{ modalError() }}</p>
+      }
+      <div class="modal-actions">
+        <button
+          class="button"
+          [disabled]="ocupado()"
+          (click)="desactivando.set(null)"
+        >
+          Volver</button
+        ><button
+          class="button danger"
+          [disabled]="ocupado()"
+          (click)="desactivar()"
+        >
+          Desactivar
+        </button>
+      </div>
+    </section>
+  </div>
+}

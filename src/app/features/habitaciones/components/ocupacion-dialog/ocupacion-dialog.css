@@ -1,0 +1,13 @@
+.field {
+  margin-top: 20px;
+}
+.field small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.inline-note {
+  margin-top: 20px;
+}
+.modal-actions {
+  margin-top: 24px;
+}

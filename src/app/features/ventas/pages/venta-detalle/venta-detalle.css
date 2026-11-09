@@ -1,0 +1,52 @@
+.sale-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 28px;
+  margin-top: 25px;
+  align-items: start;
+}
+.sale-detail > section {
+  padding: 30px;
+}
+.sale-detail h2 {
+  font-size: 25px;
+  line-height: 1.4;
+}
+.sale-detail p {
+  font-size: 14px;
+  line-height: 1.8;
+}
+.sale-detail .button {
+  margin: 15px 8px 0 0;
+}
+.detail-lines {
+  padding: 15px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.detail-lines > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 10px 0;
+  font-size: 14px;
+}
+@media (max-width: 1000px) {
+  .sale-detail {
+    grid-template-columns: 1fr;
+  }
+  .receipt-sheet {
+    max-width: 500px;
+    width: 100%;
+    margin: auto;
+  }
+}
+@media print {
+  .sale-detail {
+    display: block;
+    margin: 0;
+  }
+  .receipt-sheet {
+    max-width: none;
+  }
+}

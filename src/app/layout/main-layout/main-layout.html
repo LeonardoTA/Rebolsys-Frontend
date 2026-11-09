@@ -1,0 +1,14 @@
+<div class="app-shell" [class.menu-open]="!menuColapsado()">
+  <app-sidebar (navegar)="menuColapsado.set(true)" />
+  @if (!menuColapsado()) {
+    <button
+      class="menu-backdrop"
+      aria-label="Cerrar menú"
+      (click)="menuColapsado.set(true)"
+    ></button>
+  }
+  <div class="workspace">
+    <app-header (toggleMenu)="alternarMenu()" />
+    <main><router-outlet /></main>
+  </div>
+</div>

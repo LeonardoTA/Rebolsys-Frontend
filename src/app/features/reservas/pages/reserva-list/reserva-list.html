@@ -1,0 +1,511 @@
+<section class="panel no-print">
+  <div class="panel-toolbar reservations-toolbar">
+    <div class="search-field">
+      <app-icon name="search" /><input
+        type="search"
+        aria-label="Buscar reservas"
+        placeholder="Buscar por cliente, documento, habitación o número…"
+        [(ngModel)]="busqueda"
+        (input)="buscar()"
+      />
+    </div>
+    <div class="filter-controls">
+      <label class="sr-only" for="estado-reserva">Estado de reserva</label
+      ><select
+        id="estado-reserva"
+        [(ngModel)]="estado"
+        (change)="pagina = 0; cargar()"
+      >
+        <option value="">Todos los estados</option>
+        <option value="CONFIRMADA">Confirmadas</option>
+        <option value="EN_CURSO">En curso</option>
+        <option value="FINALIZADA">Finalizadas</option>
+        <option value="CANCELADA">Canceladas</option></select
+      ><button
+        class="icon-button"
+        aria-label="Actualizar reservas"
+        (click)="cargar()"
+      >
+        <app-icon name="calendar" />
+      </button>
+    </div>
+  </div>
+  @if (error()) {
+    <div class="error-state" role="alert">
+      <app-icon name="info" />
+      <p>{{ error() }}</p>
+      <button class="button" (click)="cargar()">Reintentar</button>
+    </div>
+  } @else if (cargando()) {
+    <div class="loading-state">
+      <span class="spinner"></span>Cargando reservas…
+    </div>
+  } @else {
+    <div class="table-scroll">
+      <table class="reservations-table">
+        <thead>
+          <tr>
+            <th>N.º RESERVA</th>
+            <th>CLIENTE Y ESTANCIA</th>
+            <th>HABITACIONES</th>
+            <th>ESTADO</th>
+            <th>IMPORTE</th>
+            <th>ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of respuesta()?.contenido; track r.referencia) {
+            <tr>
+              <td>
+                <button
+                  class="reservation-id text-button"
+                  (click)="detalle.set(r)"
+                >
+                  #{{ r.numero }}</button
+                ><small
+                  >{{ r.habitaciones.length }}
+                  {{
+                    r.habitaciones.length === 1 ? "habitación" : "habitaciones"
+                  }}</small
+                >
+              </td>
+              <td>
+                <strong class="customer-name">{{
+                  nombre(r.cliente.datos)
+                }}</strong
+                ><small
+                  >{{ r.habitaciones[0].fechaIngreso | date: "dd MMM yyyy" }}
+                  <span class="date-arrow">→</span>
+                  {{
+                    r.habitaciones[0].fechaSalida | date: "dd MMM yyyy"
+                  }}</small
+                ><small
+                  >{{ r.habitaciones[0].fechaIngreso | date: "HH:mm" }} —
+                  {{ r.habitaciones[0].fechaSalida | date: "HH:mm" }}</small
+                >
+              </td>
+              <td>
+                <div class="room-chips">
+                  @for (h of r.habitaciones; track h.idDetalleReserva) {
+                    <span>{{ h.numero }}</span>
+                  }
+                </div>
+                <small>{{ numeroHuespedes(r) }} huéspedes registrados</small>
+              </td>
+              <td>
+                <span [class]="'badge ' + r.estado.toLowerCase()">{{
+                  estadoTexto(r.estado)
+                }}</span>
+              </td>
+              <td>
+                <strong>{{
+                  r.total | currency: "PEN" : "S/ " : "1.2-2"
+                }}</strong
+                ><small
+                  [class.paid-text]="r.estadoCobro === 'PAGADO'"
+                  [class.pending-text]="r.estadoCobro === 'PENDIENTE'"
+                  >{{
+                    r.estadoCobro === "PAGADO"
+                      ? "Pagado"
+                      : r.estadoCobro === "ANULADO"
+                        ? "Anulado"
+                        : r.estadoCobro === "PARCIAL"
+                          ? "Pago parcial"
+                          : "Pago pendiente"
+                  }}</small
+                >
+                <small>Cobrado: {{ r.pagado | currency: "PEN" : "S/ " }}</small
+                ><small>Saldo: {{ r.saldo | currency: "PEN" : "S/ " }}</small>
+                @if (r.devuelto > 0) {
+                  <small
+                    >Devuelto: {{ r.devuelto | currency: "PEN" : "S/ " }}</small
+                  >
+                }
+              </td>
+              <td>
+                <div class="row-actions">
+                  <a
+                    class="action-icon edit-action"
+                    [class.disabled]="!editable(r)"
+                    [attr.aria-disabled]="!editable(r)"
+                    [routerLink]="
+                      editable(r) ? ['/reservas', r.referencia, 'editar'] : null
+                    "
+                    [title]="
+                      editable(r)
+                        ? 'Editar reserva'
+                        : 'Solo se editan reservas confirmadas'
+                    "
+                    ><app-icon name="edit" /><span class="sr-only"
+                      >Editar reserva {{ r.numero }}</span
+                    ></a
+                  ><button
+                    class="action-icon cancel-action"
+                    [disabled]="!editable(r)"
+                    [title]="
+                      editable(r)
+                        ? 'Cancelar reserva'
+                        : 'La reserva no permite cancelación en esta iteración'
+                    "
+                    (click)="abrirCancelacion(r)"
+                  >
+                    <app-icon name="close" /><span class="sr-only"
+                      >Cancelar reserva {{ r.numero }}</span
+                    ></button
+                  ><button
+                    class="button small receipt-button"
+                    [disabled]="!r.comprobante"
+                    title="Ver comprobante interno del pago"
+                    (click)="verComprobante(r)"
+                  >
+                    <app-icon name="receipt" />Generar comprobante
+                  </button>
+                  @if (r.saldo > 0 && r.estado !== "CANCELADA") {
+                    <button
+                      class="button small pay-button"
+                      (click)="abrirPago(r)"
+                    >
+                      <app-icon name="wallet" />Pagar
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6">
+                <div class="empty-state">
+                  <app-icon name="calendar" />
+                  <h3>
+                    {{
+                      busqueda || estado
+                        ? "No encontramos coincidencias"
+                        : "Tu primera
+                reserva empieza aquí"
+                    }}
+                  </h3>
+                  <p>
+                    {{
+                      busqueda || estado
+                        ? "Prueba con otro cliente o cambia los
+                filtros."
+                        : "Agrega una reserva para organizar las próximas
+                estancias."
+                    }}
+                  </p>
+                  @if (!busqueda && !estado) {
+                    <a routerLink="/reservas/nueva" class="button primary"
+                      ><app-icon name="plus" />Registrar reserva</a
+                    >
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <div>
+        <label
+          >Filas por página
+          <select [(ngModel)]="tamanio" (change)="pagina = 0; cargar()">
+            <option [ngValue]="5">5</option>
+            <option [ngValue]="10">10</option>
+            <option [ngValue]="20">20</option>
+          </select></label
+        ><span>{{ respuesta()?.totalElementos || 0 }} reservas</span>
+      </div>
+      <div>
+        <button
+          class="button small"
+          [disabled]="pagina === 0"
+          (click)="pagina = pagina - 1; cargar()"
+        >
+          Anterior</button
+        ><span
+          >Página {{ respuesta()?.totalPaginas ? pagina + 1 : 0 }} de
+          {{ respuesta()?.totalPaginas || 0 }}</span
+        ><button
+          class="button small"
+          [disabled]="respuesta()?.ultima ?? true"
+          (click)="pagina = pagina + 1; cargar()"
+        >
+          Siguiente
+        </button>
+      </div>
+    </div>
+  }
+</section>
+<div class="add-reservation no-print">
+  <a routerLink="/reservas/nueva" class="button primary"
+    ><app-icon name="plus" />Agregar nueva reserva</a
+  >
+</div>
+<p class="list-note no-print">
+  <span class="live-dot"></span>Una reserva puede reunir varias habitaciones.
+  Los pagos pendientes se registran desde la misma lista.
+</p>
+@if (cancelando(); as r) {
+  <div
+    class="modal-backdrop no-print"
+    (click)="!ocupado() && cancelando.set(null)"
+  >
+    <section
+      appDialog
+      (dialogEscape)="!ocupado() && cancelando.set(null)"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="cancel-title"
+      (click)="$event.stopPropagation()"
+    >
+      <span class="feature-icon blush"><app-icon name="close" /></span>
+      <h2 id="cancel-title">¿Cancelar la reserva?</h2>
+      <p class="muted">
+        La reserva #{{ r.numero }} de {{ nombre(r.cliente.datos) }} quedará
+        cancelada y sus habitaciones se liberarán para esas fechas. El historial
+        se conservará.
+      </p>
+      @if ((r.totalConsumos || 0) > 0) {
+        <p class="error-box">
+          Esta reserva tiene productos de tienda entregados. Revisa su
+          liquidación antes de cancelar o devolver importes.
+        </p>
+      }
+      <label class="field"
+        >Motivo de cancelación<textarea
+          maxlength="800"
+          [(ngModel)]="motivoCancelacion"
+          [disabled]="ocupado()"
+        ></textarea>
+      </label>
+      @if (r.pagado > 0) {
+        <div class="payment-total">
+          <span>Devolver en efectivo</span
+          ><strong>{{
+            r.pagado - r.devuelto | currency: "PEN" : "S/ " : "1.2-2"
+          }}</strong>
+        </div>
+        <label class="refund-check"
+          ><input
+            type="checkbox"
+            [(ngModel)]="confirmarDevolucion"
+            [disabled]="ocupado()"
+          />Confirmo la entrega de este importe al cliente. Se registrará el
+          egreso de caja y se anulará el comprobante interno.</label
+        >
+      }
+      @if (modalError()) {
+        <p class="error-box" role="alert">{{ modalError() }}</p>
+      }
+      <div class="modal-actions">
+        <button
+          class="button"
+          [disabled]="ocupado()"
+          (click)="cancelando.set(null)"
+        >
+          Volver</button
+        ><button
+          class="button danger"
+          [disabled]="
+            ocupado() ||
+            !motivoCancelacion.trim() ||
+            (r.pagado > 0 && !confirmarDevolucion)
+          "
+          (click)="cancelar(r)"
+        >
+          {{ ocupado() ? "Cancelando…" : "Sí, cancelar reserva" }}
+        </button>
+      </div>
+    </section>
+  </div>
+}
+@if (pagando(); as r) {
+  <app-pago-modal
+    [total]="r.saldo"
+    [esNueva]="false"
+    [ocupado]="ocupado()"
+    [error]="modalError()"
+    (cerrar)="pagando.set(null)"
+    (confirmar)="pagar($event.recibido, $event.monto)"
+  />
+}
+@if (detalle(); as r) {
+  <div class="modal-backdrop no-print" (click)="detalle.set(null)">
+    <section
+      appDialog
+      (dialogEscape)="detalle.set(null)"
+      class="modal wide-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="detail-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="modal-header">
+        <p class="eyebrow">DETALLE DE RESERVA</p>
+        <button
+          class="icon-button"
+          aria-label="Cerrar detalle"
+          (click)="detalle.set(null)"
+        >
+          <app-icon name="close" />
+        </button>
+      </header>
+      <h2 id="detail-title">Reserva #{{ r.numero }}</h2>
+      <p class="subtitle">
+        {{ nombre(r.cliente.datos) }} · {{ r.cliente.datos.numeroDocumento }}
+      </p>
+      <div class="detail-rooms">
+        @for (h of r.habitaciones; track h.idDetalleReserva) {
+          <div class="detail-line">
+            <strong>Habitación {{ h.numero }} · {{ h.tipo }}</strong
+            ><small
+              >{{ h.fechaIngreso | date: "dd/MM/yyyy HH:mm" }} →
+              {{ h.fechaSalida | date: "dd/MM/yyyy HH:mm" }}</small
+            ><small
+              >{{ h.huespedes.length }} huéspedes ·
+              {{
+                h.costo
+                  | currency
+                    : "PEN"
+                    : "S/
+          "
+              }}</small
+            >
+            @for (g of h.huespedes; track g.persona.numeroDocumento) {
+              <p class="muted">
+                {{ nombre(g.persona) }} · {{ g.persona.numeroDocumento }}
+              </p>
+            }
+          </div>
+        }
+      </div>
+      @if (r.consumos?.length) {
+        <section class="store-consumptions">
+          <h3>Consumos de la tiendita</h3>
+          @for (consumo of r.consumos; track consumo.idConsumo) {
+            <p>
+              <span
+                >Habitación {{ consumo.habitacion }} · {{ consumo.cantidad }} ×
+                {{ consumo.descripcion }}</span
+              ><strong>{{ consumo.total | currency: "PEN" : "S/ " }}</strong>
+            </p>
+          }
+          <p>
+            <span>Total de consumos</span
+            ><strong>{{ r.totalConsumos | currency: "PEN" : "S/ " }}</strong>
+          </p>
+        </section>
+      }
+      <div class="payment-total">
+        <span
+          >Total ·
+          {{ r.estadoCobro === "PAGADO" ? "Pagado" : "Pendiente" }}</span
+        ><strong>{{ r.total | currency: "PEN" : "S/ " }}</strong>
+      </div>
+      <button class="button full" (click)="detalle.set(null)">Cerrar</button>
+    </section>
+  </div>
+}
+@if (recibo(); as c) {
+  <div class="modal-backdrop receipt-overlay" (click)="recibo.set(null)">
+    <section
+      appDialog
+      (dialogEscape)="recibo.set(null)"
+      class="modal receipt-sheet"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="receipt-title"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="receipt-brand">
+        <app-icon name="mountain" /><strong>Real Bolognesi</strong
+        ><small>GESTIÓN DE HOSPEDAJE</small>
+      </div>
+      <h2 id="receipt-title">Comprobante interno</h2>
+      @if (reservaComprobante(); as r) {
+        @if ((r.comprobantes?.length || 0) > 1) {
+          <div class="receipt-options no-print">
+            <p>Comprobantes de esta reserva</p>
+            @for (doc of r.comprobantes; track doc.idComprobante) {
+              <button
+                class="button small"
+                [disabled]="doc.numero === c.numero"
+                (click)="verComprobante(r, doc.idComprobante)"
+              >
+                {{ doc.numero }}
+              </button>
+            }
+          </div>
+        }
+      }
+      <p class="receipt-number">{{ c.numero }}</p>
+      <div class="receipt-data">
+        <span
+          >Fecha<strong>{{ c.fecha | date: "dd/MM/yyyy HH:mm" }}</strong></span
+        ><span
+          >Cliente<strong>{{ c.receptor }}</strong></span
+        ><span
+          >Documento<strong>{{ c.documento }}</strong></span
+        ><span>Forma de pago<strong>Efectivo</strong></span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>CONCEPTO</th>
+            <th class="align-right">IMPORTE</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (l of c.lineas; track $index) {
+            <tr>
+              <td>{{ l.descripcion }}</td>
+              <td class="align-right">
+                {{ l.total | currency: "PEN" : "S/ " }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+      <div class="payment-total">
+        <span>Total cobrado</span
+        ><strong>{{ c.pagado | currency: "PEN" : "S/ " }}</strong>
+      </div>
+      <p>
+        Estado: <strong>{{ c.estado }}</strong>
+      </p>
+      <p>
+        Total de la reserva: {{ c.total | currency: "PEN" : "S/ " }} · Saldo:
+        {{
+          c.estado === "ANULADO"
+            ? 0
+            : (c.total - c.pagado | currency: "PEN" : "S/ ")
+        }}
+      </p>
+      @if (c.devuelto > 0) {
+        <p>Devuelto: {{ c.devuelto | currency: "PEN" : "S/ " }}</p>
+      }
+      <h3>Historial de pagos</h3>
+      @for (p of c.pagos; track p.idPago) {
+        <p>
+          {{ p.fecha | date: "dd/MM/yyyy HH:mm" }} ·
+          {{ p.monto | currency: "PEN" : "S/ " }}
+          @if (p.devuelto > 0) {
+            · Devuelto: {{ p.devuelto | currency: "PEN" : "S/ " }}
+          }
+        </p>
+      }
+      <p class="receipt-disclaimer">
+        Documento interno sin valor tributario.<br />Gracias por elegir Real
+        Bolognesi.
+      </p>
+      <div class="modal-actions no-print">
+        <button class="button" (click)="recibo.set(null)">Cerrar</button
+        ><button class="button primary" (click)="imprimir()">
+          <app-icon name="print" />Imprimir
+        </button>
+      </div>
+    </section>
+  </div>
+}

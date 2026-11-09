@@ -1,0 +1,224 @@
+<section class="panel calendar-panel">
+  <div class="panel-toolbar">
+    <div class="floor-tabs" aria-label="Filtrar por piso">
+      <button [class.selected]="piso() === 'todos'" (click)="piso.set('todos')">
+        Todos los pisos
+      </button>
+      @for (p of pisos(); track p) {
+        <button [class.selected]="piso() === p" (click)="piso.set(p)">
+          Piso {{ p.padStart(2, "0")
+          }}<small>{{ cantidadPiso(p) }} habitaciones</small>
+        </button>
+      }
+    </div>
+    <div class="calendar-navigation">
+      <button
+        class="icon-button"
+        aria-label="Semana anterior"
+        (click)="mover(-7)"
+      >
+        <app-icon name="arrow" /></button
+      ><label class="date-selector"
+        ><input
+          type="date"
+          [ngModel]="desde()"
+          (ngModelChange)="cambiar($event)"
+          aria-label="Inicio del calendario" /></label
+      ><button
+        class="icon-button next-arrow"
+        aria-label="Semana siguiente"
+        (click)="mover(7)"
+      >
+        <app-icon name="arrow" /></button
+      ><button class="button small" (click)="hoy()">Hoy</button>
+    </div>
+  </div>
+  <div class="calendar-caption">
+    <h2>{{ inicio() | date: "MMMM yyyy" }}</h2>
+    <div class="legend">
+      <span><i class="legend-dot confirmed"></i>Confirmada</span
+      ><span><i class="legend-dot in-progress"></i>En curso</span
+      ><span><i class="legend-dot maintenance"></i>No disponible</span>
+    </div>
+  </div>
+  @if (error()) {
+    <div class="error-state" role="alert">
+      <app-icon name="info" />
+      <p>{{ error() }}</p>
+      <button class="button" (click)="cargar()">Reintentar</button>
+    </div>
+  } @else if (cargando()) {
+    <div class="loading-state">
+      <span class="spinner"></span>Cargando habitaciones…
+    </div>
+  } @else if (!rooms().length) {
+    <div class="empty-state">
+      <app-icon name="bed" />
+      <h3>Aún no hay habitaciones registradas</h3>
+      <p>Las habitaciones se preparan desde el backend para esta iteración.</p>
+    </div>
+  } @else {
+    <div class="calendar-scroll">
+      <div class="room-calendar">
+        <div class="calendar-header">
+          <div>
+            HABITACIÓN <span>{{ filtradas().length }} espacios</span>
+          </div>
+          @for (day of dias(); track day.getTime()) {
+            <div [class.today]="esHoy(day)">
+              <small>{{ day | date: "EEE" }}</small
+              ><strong>{{ day | date: "dd" }}</strong>
+            </div>
+          }
+        </div>
+        @for (room of filtradas(); track room.idHabitacion) {
+          <div class="calendar-row">
+            <article class="room-info">
+              <div class="room-heading">
+                <span class="room-number">Habitación {{ room.numero }}</span
+                ><span class="room-kind">{{ room.tipo }}</span>
+              </div>
+              <p>
+                <app-icon name="users" />Hasta {{ room.capacidad }}
+                {{ room.capacidad === 1 ? "persona" : "personas" }}
+              </p>
+              <div class="room-price">
+                {{ room.precio | currency: "PEN" : "S/ " : "1.0-2"
+                }}<small> / noche</small>
+              </div>
+              <div class="room-bottom">
+                <span
+                  class="badge"
+                  [class]="'badge ' + room.estado.toLowerCase()"
+                  >{{ estadoTexto(room.estado) }}</span
+                ><button class="text-button" (click)="detalle.set(room)">
+                  Ver detalles
+                </button>
+              </div>
+            </article>
+            <div class="timeline">
+              @for (day of dias(); track day.getTime()) {
+                <div
+                  class="timeline-cell"
+                  [class.today-column]="esHoy(day)"
+                ></div>
+              }
+              @if (room.estado !== "DISPONIBLE") {
+                <div class="room-blocked">
+                  <app-icon name="info" />{{ estadoTexto(room.estado) }}
+                </div>
+              }
+              @for (
+                block of room.reservas;
+                track block.referencia + block.ingreso
+              ) {
+                <button
+                  class="booking-block"
+                  [class.in-progress]="block.estado === 'EN_CURSO'"
+                  [style.left.%]="posicion(block).left"
+                  [style.width.%]="posicion(block).width"
+                  (click)="detalle.set(room)"
+                >
+                  <strong>{{ block.cliente }}</strong
+                  ><small>{{
+                    block.estado === "EN_CURSO"
+                      ? "Estancia en curso"
+                      : "Reserva
+              confirmada"
+                  }}</small
+                  ><span
+                    >{{ block.ingreso | date: "dd MMM" }} —
+                    {{
+                      block.salida
+                        | date
+                          : "dd
+              MMM"
+                    }}</span
+                  >
+                </button>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+  <div class="panel-bottom">
+    <app-icon name="info" /><span
+      >El estado de cada habitación es informativo. Las reservas se registran
+      desde «Nueva reserva».</span
+    >
+  </div>
+</section>
+@if (detalle(); as room) {
+  <div class="modal-backdrop" (click)="detalle.set(null)">
+    <section
+      appDialog
+      (dialogEscape)="detalle.set(null)"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="room-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="modal-header">
+        <span class="feature-icon lavender"><app-icon name="bed" /></span
+        ><button
+          class="icon-button"
+          aria-label="Cerrar detalles"
+          (click)="detalle.set(null)"
+        >
+          <app-icon name="close" />
+        </button>
+      </header>
+      <p class="eyebrow">DETALLES DEL ESPACIO</p>
+      <h2 id="room-title">Habitación {{ room.numero }}</h2>
+      <p class="subtitle">
+        {{ room.tipo }} · Hasta {{ room.capacidad }}
+        {{ room.capacidad === 1 ? "persona" : "personas" }}
+      </p>
+      <p class="muted">
+        {{ room.plazasCama ?? room.capacidad }}
+        {{ (room.plazasCama ?? room.capacidad) === 1 ? "plaza" : "plazas" }} de
+        cama · Máximo {{ room.maxMenoresSinCama ?? 0 }}
+        {{ room.maxMenoresSinCama === 1 ? "menor" : "menores" }} sin plaza
+        propia
+      </p>
+      <button class="button subtle full" (click)="abrirOcupacion(room)">
+        Configurar ocupación
+      </button>
+      <div class="payment-total">
+        <span>Precio por noche</span
+        ><strong>{{ room.precio | currency: "PEN" : "S/ " }}</strong>
+      </div>
+      <span [class]="'badge ' + room.estado.toLowerCase()">{{
+        estadoTexto(room.estado)
+      }}</span>
+      <h3 class="spaced-title">Reservas del período</h3>
+      @for (block of room.reservas; track block.referencia) {
+        <div class="detail-line">
+          <strong>{{ block.cliente }}</strong
+          ><small
+            >{{ block.ingreso | date: "dd/MM HH:mm" }} →
+            {{
+              block.salida
+                | date
+                  : "dd/MM
+        HH:mm"
+            }}</small
+          >
+        </div>
+      } @empty {
+        <p class="muted">Sin reservas en el intervalo mostrado.</p>
+      }
+      <button class="button full" (click)="detalle.set(null)">Cerrar</button>
+    </section>
+  </div>
+}
+@if (configurando(); as room) {
+  <app-ocupacion-dialog
+    [habitacion]="room"
+    (cerrar)="configurando.set(null)"
+    (guardado)="ocupacionGuardada()"
+  />
+}

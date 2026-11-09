@@ -1,0 +1,115 @@
+<a class="button back-link" routerLink="/productos"
+  ><app-icon name="arrow" />Regresar a productos</a
+>
+@if (cargando()) {
+<div class="loading-state panel">Cargando producto…</div>
+} @else {
+<form class="product-editor panel" [formGroup]="form" (ngSubmit)="guardar()">
+  <div class="editor-fields">
+    <p class="eyebrow">CATÁLOGO DE LA TIENDITA</p>
+    <h2>{{ id() ? 'Editar producto' : 'Agregar producto' }}</h2>
+    <div class="form-grid">
+      <label class="field span-2"
+        >Nombre del producto *<input
+          formControlName="nombreProducto"
+          maxlength="100"
+          placeholder="Ej. Agua mineral 500 ml" /></label
+      ><label class="field"
+        >Categoría *<select formControlName="idCategoria">
+          <option [ngValue]="null">Seleccionar categoría</option>
+          @for (c of categorias(); track c.idCategoria) {
+          <option [ngValue]="c.idCategoria">{{ c.nombreCategoria }}</option>
+          }
+        </select></label
+      ><label class="field"
+        >Estado *<select formControlName="estadoProducto">
+          <option value="ACTIVO">Activo</option>
+          <option value="INACTIVO">Inactivo</option>
+        </select></label
+      >
+      <div class="field span-2 new-category">
+        <label
+          >Nueva categoría (opcional)<input
+            [value]="nuevaCategoria()"
+            (input)="nuevaCategoria.set($any($event.target).value)"
+            maxlength="30"
+            placeholder="Ej. Bebidas" /></label
+        ><button
+          type="button"
+          class="button small"
+          [disabled]="!nuevaCategoria().trim() || creandoCategoria()"
+          (click)="crearCategoria()"
+        >
+          Crear categoría
+        </button>
+      </div>
+      <label class="field"
+        >Precio por unidad (S/) *<input
+          type="number"
+          min="0"
+          max="99999999.99"
+          step="0.01"
+          formControlName="precioActual" /></label
+      ><label class="field"
+        >Stock mínimo *<input
+          type="number"
+          min="0"
+          max="999999999"
+          step="1"
+          formControlName="stockMinimo" /></label
+      ><label class="field"
+        >Existencias actuales *<input
+          type="number"
+          min="0"
+          max="999999999"
+          step="1"
+          formControlName="stock"
+      /></label>
+      <div class="stock-note">
+        <app-icon name="info" />
+        <p>
+          Los cambios de existencias generan un ajuste de almacén. Las ventas
+          descuentan stock automáticamente.
+        </p>
+      </div>
+      <label class="field span-2"
+        >Ruta de imagen (opcional)<input
+          formControlName="imagenRuta"
+          maxlength="300"
+          (input)="imagenFallida.set(false)"
+          placeholder="/imagenes/productos/agua.webp"
+        /><small
+          >Ruta del sitio a PNG, JPG, WEBP, AVIF o GIF. Por ejemplo:
+          /imagenes/productos/agua.webp.</small
+        ></label
+      >
+    </div>
+    @if (error()) {
+    <p class="error-box" role="alert">{{ error() }}</p>
+    }
+    <div class="form-actions">
+      <a class="button" routerLink="/productos">Cancelar</a
+      ><button class="button primary" type="submit" [disabled]="guardando()">
+        <app-icon name="check" />{{ guardando() ? 'Guardando…' : 'Guardar
+        producto' }}
+      </button>
+    </div>
+  </div>
+  <aside class="product-preview">
+    <p class="eyebrow">VISTA PREVIA</p>
+    <img
+      [src]="vistaImagen()"
+      (error)="imagenFallida.set(true)"
+      alt="Vista previa del producto"
+    />
+    <h3>{{ form.get('nombreProducto')!.value || 'Nombre del producto' }}</h3>
+    <strong
+      >{{ form.get('precioActual')!.value || 0 | currency: 'PEN' : 'S/ '
+      }}</strong
+    >
+    <p class="muted">
+      Si la ruta aún no está disponible, se muestra la imagen de respaldo.
+    </p>
+  </aside>
+</form>
+}

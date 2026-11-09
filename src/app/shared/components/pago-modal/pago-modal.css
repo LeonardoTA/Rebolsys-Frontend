@@ -1,0 +1,74 @@
+.payment-method {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  border: 2px solid var(--azul);
+  border-radius: 9px;
+  background: #f4f1ff;
+  margin-bottom: 22px;
+}
+.payment-method strong,
+.payment-method small {
+  display: block;
+}
+.payment-method small {
+  color: #666;
+  font-size: 13px;
+}
+.payment-method > app-icon {
+  margin-left: auto;
+}
+.check-round {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  width: 23px;
+  height: 23px;
+  background: var(--azul);
+  color: white;
+}
+.check-round app-icon {
+  width: 16px;
+  height: 16px;
+}
+.money-input {
+  position: relative;
+}
+.money-input > span {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+}
+.money-input input {
+  padding-left: 42px;
+}
+.change-line {
+  display: flex;
+  justify-content: space-between;
+  margin: 14px 0 22px;
+}
+.payment-modal .button {
+  margin-top: 8px;
+}
+.payment-footnote {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+  color: #666;
+  font-size: 12px;
+}
+
+.partial-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0;
+  font-weight: 600;
+}
+.partial-choice input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--azul);
+}

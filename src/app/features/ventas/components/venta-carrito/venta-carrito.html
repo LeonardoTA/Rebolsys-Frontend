@@ -1,0 +1,86 @@
+<aside class="cart-panel">
+  <header>
+    <app-icon name="receipt" />
+    <div>
+      <h3>Resumen de venta</h3>
+      <small
+        >{{ unidades() }} {{ unidades() === 1 ? 'unidad' : 'unidades' }} en el
+        carrito</small
+      >
+    </div>
+  </header>
+  <div class="cart-items">
+    @for (l of carrito(); track l.producto.idProducto) {
+    <article class="cart-line">
+      <div>
+        <strong>{{ l.producto.nombreProducto }}</strong
+        ><small
+          >{{ l.producto.precioActual | currency: 'PEN' : 'S/ ' }} por
+          unidad</small
+        >
+        <div class="quantity-control">
+          <button
+            (click)="restar.emit(l.producto.idProducto)"
+            [disabled]="guardando()"
+            [attr.aria-label]="'Restar ' + l.producto.nombreProducto"
+          >
+            −</button
+          ><span>{{ l.cantidad }}</span
+          ><button
+            (click)="agregar.emit(l.producto)"
+            [disabled]="guardando() || l.cantidad >= l.producto.stock"
+            [attr.aria-label]="'Sumar ' + l.producto.nombreProducto"
+          >
+            +
+          </button>
+        </div>
+      </div>
+      <div>
+        <strong
+          >{{ l.producto.precioActual * l.cantidad | currency: 'PEN' : 'S/ '
+          }}</strong
+        ><button
+          class="text-button"
+          [disabled]="guardando()"
+          (click)="quitar.emit(l.producto.idProducto)"
+        >
+          Quitar
+        </button>
+      </div>
+    </article>
+    } @empty {
+    <div class="cart-empty">
+      <span><app-icon name="bag" /></span>
+      <p>Tu carrito está vacío</p>
+      <small>Elige un producto para comenzar.</small>
+    </div>
+    }
+  </div>
+  <footer>
+    <div>
+      <span>Subtotal</span
+      ><strong>{{ total() | currency: 'PEN' : 'S/ ' }}</strong>
+    </div>
+    <div>
+      <span>IGV registrado</span
+      ><strong>{{ 0 | currency: 'PEN' : 'S/ ' }}</strong>
+    </div>
+    <div class="cart-total">
+      <span>Total</span><strong>{{ total() | currency: 'PEN' : 'S/ ' }}</strong>
+    </div>
+    <button
+      class="button primary full"
+      [disabled]="guardando() || !carrito().length"
+      (click)="confirmar.emit()"
+    >
+      <app-icon name="check" />{{ guardando() ? 'Guardando…' : editando() ?
+      'Guardar cambios' : modoVenta() === 'CARGO_RESERVA' ? 'Añadir consumo a la
+      reserva' : 'Confirmar venta' }}
+    </button>
+    <p class="cart-footnote">
+      {{ editando() ? 'Venta pendiente · Sin comprobante emitido' : modoVenta()
+      === 'CARGO_RESERVA' ? 'Cargo pendiente a la reserva' : 'Comprobante
+      interno · Cobro en efectivo.' }}
+    </p>
+  </footer>
+</aside>

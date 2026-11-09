@@ -1,0 +1,557 @@
+<div class="page-heading">
+  <a class="button back-link" routerLink="/reservas"
+    ><app-icon name="arrow" />Regresar</a
+  >
+</div>
+@if (cargando()) {
+<div class="loading-state panel">
+  <span class="spinner"></span>Preparando el formulario…
+</div>
+} @else if (errorCarga()) {
+<div class="error-state panel" role="alert">
+  <p>{{ errorCarga() }}</p>
+  <button class="button" (click)="cargar()">Reintentar</button>
+</div>
+} @else {
+<form [formGroup]="form" (ngSubmit)="revisar()" class="reservation-form">
+  <div class="form-main">
+    <section class="panel form-section">
+      <div class="section-heading">
+        <span class="section-number">01</span>
+        <div>
+          <h2>Datos del cliente</h2>
+          <p>La persona o empresa responsable de la reserva.</p>
+        </div>
+        <app-icon name="users" />
+      </div>
+      <div formGroupName="cliente">
+        <div class="identity-switch">
+          <label
+            ><input
+              type="radio"
+              formControlName="empresa"
+              [value]="false"
+              [attr.disabled]="ref() ? true : null"
+              (change)="validarCliente()"
+            />Persona natural</label
+          ><label
+            ><input
+              type="radio"
+              formControlName="empresa"
+              [value]="true"
+              [attr.disabled]="ref() ? true : null"
+              (change)="validarCliente()"
+            />Empresa</label
+          >
+        </div>
+        <div class="form-grid">
+          <label class="field"
+            >Tipo de documento <span class="required">*</span
+            ><select formControlName="idTipoDocumento">
+              <option [ngValue]="null">Seleccionar documento</option>
+              @for (d of catalogos()?.documentos; track d.id) {
+              <option [ngValue]="d.id">{{ d.nombre }}</option>
+              }
+            </select></label
+          ><label class="field"
+            >Número de documento <span class="required">*</span>
+            <div class="input-with-button">
+              <input
+                formControlName="numeroDocumento"
+                maxlength="50"
+                placeholder="Ingresa el documento"
+              /><button
+                type="button"
+                class="icon-button"
+                [disabled]="buscando()"
+                aria-label="Buscar cliente por documento"
+                title="Buscar en el hospedaje o consultar DNI/RUC"
+                (click)="buscarCliente()"
+              >
+                <app-icon name="search" />
+              </button></div
+          ></label>
+          @if (!esEmpresa()) {
+          <label class="field"
+            >Nombres <span class="required">*</span
+            ><input
+              formControlName="nombres"
+              maxlength="100"
+              placeholder="Ej. Lucía Elena" /></label
+          ><label class="field"
+            >Apellidos <span class="required">*</span
+            ><input
+              formControlName="apellidos"
+              maxlength="100"
+              placeholder="Ej. Mendoza Ramos" /></label
+          ><label class="field"
+            >Fecha de nacimiento <span class="required">*</span
+            ><input type="date" [max]="hoy" formControlName="fechaNacimiento"
+          /></label>
+          } @else {
+          <label class="field span-2"
+            >Razón social <span class="required">*</span
+            ><input
+              formControlName="razonSocial"
+              maxlength="250"
+              placeholder="Nombre de la empresa" /></label
+          ><label class="field span-2"
+            >Dirección fiscal <span class="optional">Opcional</span
+            ><input
+              formControlName="direccionFiscal"
+              maxlength="200"
+              placeholder="Dirección fiscal de la empresa"
+          /></label>
+          }
+          <label class="field"
+            >Correo electrónico <span class="optional">Opcional</span
+            ><input
+              type="email"
+              formControlName="correo"
+              maxlength="100"
+              placeholder="nombre@correo.com" /></label
+          ><label class="field"
+            >Teléfono <span class="optional">Opcional</span
+            ><input
+              type="tel"
+              formControlName="telefono"
+              maxlength="15"
+              placeholder="Ej. 987 654 321"
+          /></label>
+        </div>
+      </div>
+      @if (clienteMensaje()) {
+      <p class="inline-note"><app-icon name="info" />{{ clienteMensaje() }}</p>
+      } @if (ref()) {
+      <p class="inline-note">
+        Puedes corregir el cliente y los huéspedes. Sus fichas son compartidas;
+        los comprobantes emitidos conservan los datos originales.
+      </p>
+      }
+    </section>
+    @if (conPagos()) {
+    <p class="inline-note">
+      Esta reserva tiene pagos. Puedes editar al cliente y los huéspedes; sus
+      habitaciones, fechas e importes se conservan.
+    </p>
+    }
+    <section class="room-form-section">
+      <div class="section-heading standalone">
+        <span class="section-number">02</span>
+        <div>
+          <h2>Habitaciones de la reserva</h2>
+          <p>Agrega los espacios y las fechas de cada estancia.</p>
+        </div>
+        <span class="count-chip">{{ habitaciones.length }} seleccionadas</span>
+      </div>
+      <div formArrayName="habitaciones">
+        @for (line of habitaciones.controls; track line; let i = $index) {
+        <article class="panel room-form-card" [formGroupName]="i">
+          <header>
+            <div class="room-form-title">
+              <span class="feature-icon lavender"><app-icon name="bed" /></span>
+              <h3>Habitación {{ i + 1 }}</h3>
+            </div>
+            <button
+              type="button"
+              class="text-button remove-button"
+              [disabled]="conPagos() || habitaciones.length === 1"
+              (click)="quitarHabitacion(i)"
+            >
+              <app-icon name="close" />Quitar
+            </button>
+          </header>
+          <div class="form-grid">
+            <label class="field"
+              >Número de habitación <span class="required">*</span
+              ><select formControlName="idHabitacion">
+                <option [ngValue]="null">Seleccionar habitación</option>
+                @for (r of rooms(); track r.idHabitacion) {
+                <option
+                  [ngValue]="r.idHabitacion"
+                  [disabled]="
+                          r.estado !== 'DISPONIBLE' ||
+                          yaElegida(r.idHabitacion, i)
+                        "
+                >
+                  {{ r.numero }} · {{ r.tipo }} · {{ r.precio | currency : "PEN"
+                  : "S/ " : "1.0-2" }} / noche{{ r.estado !== "DISPONIBLE" ? " ·
+                  " + r.estado : "" }}
+                </option>
+                }
+              </select></label
+            >
+            <div class="field">
+              <span>Características</span>
+              <div class="room-characteristics">
+                @if (roomFor(i); as room) {
+                <app-icon name="users" />Hasta {{ room.capacidad }} {{
+                room.capacidad === 1 ? "persona" : "personas" }}
+                <span class="separator">·</span> {{ room.tipo }} } @else {
+                <span class="muted"
+                  >Selecciona un espacio para ver sus datos</span
+                >
+                }
+              </div>
+            </div>
+            <label class="field"
+              >Ingreso <span class="required">*</span
+              ><input
+                type="datetime-local"
+                formControlName="fechaIngreso" /></label
+            ><label class="field"
+              >Salida <span class="required">*</span
+              ><input type="datetime-local" formControlName="fechaSalida"
+            /></label>
+          </div>
+          @if (lineError(i)) {
+          <p class="field-error">{{ lineError(i) }}</p>
+          }
+          <div class="room-stay-summary">
+            <span
+              >{{ nochesLinea(i) }} {{ nochesLinea(i) === 1 ? "noche" : "noches"
+              }}
+              <span class="separator">·</span>
+              {{ roomFor(i)?.precio || 0 | currency: "PEN" : "S/ " : "1.0-2" }}
+              por noche</span
+            ><strong
+              >{{ costoLinea(i) | currency: "PEN" : "S/ " : "1.2-2" }}</strong
+            >
+          </div>
+          <div class="guest-area">
+            <div>
+              <strong
+                ><app-icon name="users" />Huéspedes
+                <span class="count-chip">{{ guests(i).length }}</span></strong
+              >
+              <p>Registra las personas que se alojarán en esta habitación.</p>
+            </div>
+            <button
+              type="button"
+              class="button small"
+              [disabled]="
+                    !roomFor(i) ||
+                    guests(i).length >= (roomFor(i)?.capacidad || 0)
+                  "
+              (click)="abrirHuesped(i)"
+            >
+              <app-icon name="plus" />Añadir huésped
+            </button>
+          </div>
+          <p class="muted">{{ resumenOcupacion(i) }}</p>
+          @for (g of guests(i); track $index; let gi = $index) {
+          <div class="guest-row">
+            <span
+              ><strong>{{ nombre(g.persona) }}</strong
+              ><small
+                >{{ g.persona.numeroDocumento }} · {{
+                tipoOcupante(g.idTipoOcupante) }} · {{ g.ocupaPlazaCama ===
+                false ? "Sin plaza propia" : "Con plaza propia" }}</small
+              ></span
+            ><button
+              type="button"
+              class="text-button"
+              (click)="editarHuesped(i, gi)"
+              [attr.aria-label]="'Editar huésped ' + nombre(g.persona)"
+            >
+              Editar</button
+            ><button
+              class="icon-button"
+              type="button"
+              [attr.aria-label]="'Quitar huésped ' + nombre(g.persona)"
+              (click)="quitarHuesped(i, gi)"
+            >
+              <app-icon name="close" />
+            </button>
+          </div>
+          @if (esMenor(g, i)) {
+          <div class="minor-responsible">
+            <label class="field"
+              >Adulto responsable en esta habitación<select
+                [ngModel]="responsableSeleccionado(g)"
+                [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="asignarResponsable(i, gi, $event)"
+              >
+                <option value="">Seleccionar responsable</option>
+                @for (a of adultos(i); track clavePersona(a)) {
+                <option [value]="clavePersona(a)">
+                  {{ nombre(a.persona) }}
+                </option>
+                }
+              </select></label
+            >
+            <label class="field"
+              >El adulto es su<select
+                [value]="g.responsable?.parentesco || ''"
+                (change)="
+                          asignarResponsable(
+                            i,
+                            gi,
+                            responsableSeleccionado(g),
+                            $any($event.target).value
+                          )
+                        "
+              >
+                <option value="">Seleccionar</option>
+                <option value="PADRE">Padre</option>
+                <option value="MADRE">Madre</option>
+                <option value="TUTOR">Tutor</option>
+              </select></label
+            >
+          </div>
+          } }
+        </article>
+        }
+      </div>
+      <button
+        type="button"
+        class="add-room-button"
+        [disabled]="conPagos() || habitaciones.length >= rooms().length"
+        (click)="agregarHabitacion()"
+      >
+        <app-icon name="plus" />Agregar nueva habitación
+      </button>
+    </section>
+  </div>
+  <aside class="booking-summary">
+    <p class="eyebrow">TU RESERVA</p>
+    <h2>Resumen de estancia</h2>
+    <div class="summary-lines">
+      @for (line of habitaciones.controls; track line; let i = $index) {
+      <div>
+        <span
+          >Habitación {{ roomFor(i)?.numero || "por seleccionar" }}<small
+            >{{ nochesLinea(i) }} {{ nochesLinea(i) === 1 ? "noche" : "noches"
+            }} · {{ guests(i).length }} {{ guests(i).length === 1 ? "huésped" :
+            "huéspedes" }}</small
+          ></span
+        ><strong
+          >{{ costoLinea(i) | currency: "PEN" : "S/ " : "1.2-2" }}</strong
+        >
+      </div>
+      }
+    </div>
+    @if (totalConsumos() > 0) {
+    <p class="inline-note">
+      Incluye consumos de tienda: {{ totalConsumos() | currency: "PEN" : "S/ "
+      }}. Sus cantidades se consultan desde la lista de reservas.
+    </p>
+    }
+    <div class="summary-total">
+      <span>Total de la reserva</span
+      ><strong>{{ total() | currency: "PEN" : "S/ " : "1.2-2" }}</strong
+      ><small>Importe calculado por estancia</small>
+    </div>
+    <p class="summary-note">
+      <app-icon name="info" />La disponibilidad y el importe final se comprueban
+      al confirmar.
+    </p>
+    @if (error()) {
+    <p class="error-box" role="alert">{{ error() }}</p>
+    }
+    <button class="button primary full" type="submit" [disabled]="guardando()">
+      <app-icon name="check" />{{ guardando() ? "Guardando…" : ref() ? "Guardar
+      cambios" : "Agregar reserva" }}</button
+    ><a routerLink="/reservas" class="button danger full">Cancelar reserva</a
+    ><span class="summary-footer"
+      >{{ ref() ? "Puedes editar personas; con pagos, se conservan habitaciones,
+      fechas e importes." : "Podrás pagar en efectivo o dejar el cobro
+      pendiente." }}</span
+    >
+  </aside>
+</form>
+} @if (pagoAbierto()) {
+<app-pago-modal
+  [total]="total()"
+  [ocupado]="guardando()"
+  [error]="errorPago()"
+  (cerrar)="pagoAbierto.set(false)"
+  (confirmar)="confirmar($event)"
+/>
+} @if (huespedEn() !== null) {
+<div class="modal-backdrop" (click)="huespedEn.set(null)">
+  <section
+    appDialog
+    (dialogEscape)="huespedEn.set(null)"
+    class="modal wide-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="guest-title"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="modal-header">
+      <p class="eyebrow">
+        HUÉSPED DE HABITACIÓN {{ roomFor(huespedEn()!)?.numero }}
+      </p>
+      <button
+        type="button"
+        class="icon-button"
+        aria-label="Cerrar huésped"
+        (click)="huespedEn.set(null)"
+      >
+        <app-icon name="close" />
+      </button>
+    </header>
+    <h2 id="guest-title">
+      {{ editandoHuesped() === null ? "Añadir huésped" : "Editar huésped" }}
+    </h2>
+    <p class="muted">Cada huésped se registra con su documento de identidad.</p>
+    <button
+      type="button"
+      class="button small"
+      [disabled]="esEmpresa()"
+      (click)="usarCliente()"
+    >
+      Usar los datos del cliente
+    </button>
+    <form [formGroup]="guestForm" (ngSubmit)="guardarHuesped()">
+      <div class="form-grid spaced-title">
+        <label class="field"
+          >Tipo de documento<select formControlName="idTipoDocumento">
+            <option [ngValue]="null">Seleccionar</option>
+            @for (d of documentosPersonales(); track d.id) {
+            <option [ngValue]="d.id">{{ d.nombre }}</option>
+            }
+          </select></label
+        ><label class="field"
+          >Número de documento<input
+            formControlName="numeroDocumento"
+            maxlength="50"
+          /><button
+            class="button small"
+            type="button"
+            [disabled]="buscandoHuesped()"
+            (click)="buscarHuesped()"
+          >
+            {{ buscandoHuesped() ? "Consultando…" : "Buscar documento" }}
+          </button></label
+        ><label class="field"
+          >Nombres<input formControlName="nombres" maxlength="100" /></label
+        ><label class="field"
+          >Apellidos<input formControlName="apellidos" maxlength="100" /></label
+        ><label class="field"
+          >Fecha de nacimiento<input
+            type="date"
+            [max]="hoy"
+            formControlName="fechaNacimiento" /></label
+        ><label class="field"
+          >Tipo de ocupante<select formControlName="idTipoOcupante">
+            <option [ngValue]="null">Seleccionar</option>
+            @for (t of catalogos()?.ocupantes; track t.id) {
+            <option [ngValue]="t.id">{{ t.nombre }}</option>
+            }
+          </select></label
+        >
+      </div>
+      @if (puedeEditarMenores()) {
+      <label class="minor-toggle"
+        ><input
+          type="checkbox"
+          [checked]="anadirMenores()"
+          (change)="cambiarMenores($any($event.target).checked)"
+        />Menores a su cargo</label
+      >
+      } @if (menoresQueSeRetiran().length) {
+      <p class="inline-note">
+        Al guardar se retirarán de esta habitación: {{
+        menoresQueSeRetiran().join(', ') }}. Si seguirán alojados, reasígnalos a
+        otro adulto antes de guardar.
+      </p>
+      } @if (editandoHuesped() !== null) {
+      <label class="minor-toggle"
+        ><input type="checkbox" formControlName="ocupaPlazaCama" />Requiere una
+        plaza de cama propia</label
+      >
+      <p class="muted">{{ notaCama() }}</p>
+      } @if (anadirMenores()) {
+      <p class="muted">
+        El adulto y los menores se alojarán en esta misma habitación. Indica qué
+        relación tiene el adulto con cada menor.
+      </p>
+      @for (menor of menores.controls; track menor; let mi = $index) {
+      <section class="minor-card" [formGroup]="grupoMenor(mi)">
+        <div class="section-heading">
+          <h3>Menor {{ mi + 1 }}</h3>
+          <button
+            class="text-button"
+            type="button"
+            (click)="menores.removeAt(mi)"
+          >
+            Quitar menor
+          </button>
+        </div>
+        <div class="form-grid">
+          <label class="field"
+            >Tipo de documento<select formControlName="idTipoDocumento">
+              @for (d of documentosPersonales(); track d.id) {
+              <option [ngValue]="d.id">{{ d.nombre }}</option>
+              }
+            </select></label
+          >
+          <label class="field"
+            >Número de documento<input
+              formControlName="numeroDocumento"
+              maxlength="50"
+            /><button
+              type="button"
+              class="button small"
+              (click)="buscarMenor(mi)"
+            >
+              Buscar documento
+            </button></label
+          >
+          <label class="field"
+            >Nombres<input formControlName="nombres" maxlength="100"
+          /></label>
+          <label class="field"
+            >Apellidos<input formControlName="apellidos" maxlength="100"
+          /></label>
+          <label class="field"
+            >Fecha de nacimiento<input
+              type="date"
+              [max]="hoy"
+              formControlName="fechaNacimiento"
+          /></label>
+          <label class="field"
+            >El adulto es su<select formControlName="parentesco">
+              <option [ngValue]="null">Seleccionar parentesco</option>
+              <option value="PADRE">Padre</option>
+              <option value="MADRE">Madre</option>
+              <option value="TUTOR">Tutor</option>
+            </select></label
+          >
+          <label class="field"
+            >Tipo de ocupante<select formControlName="idTipoOcupante">
+              @for (t of catalogos()?.ocupantes; track t.id) {
+              <option [ngValue]="t.id">{{ t.nombre }}</option>
+              }
+            </select></label
+          >
+        </div>
+        <label class="minor-toggle"
+          ><input type="checkbox" formControlName="ocupaPlazaCama" />Requiere
+          una plaza de cama propia</label
+        >
+        <p class="muted">{{ notaCama() }}</p>
+      </section>
+      }
+      <button class="button small" type="button" (click)="agregarMenor()">
+        Añadir otro menor
+      </button>
+      } @if (guestMensaje()) {
+      <p class="inline-note">{{ guestMensaje() }}</p>
+      } @if (guestError()) {
+      <p class="error-box" role="alert">{{ guestError() }}</p>
+      }
+      <div class="modal-actions">
+        <button class="button" type="button" (click)="huespedEn.set(null)">
+          Cancelar</button
+        ><button class="button primary" type="submit">
+          <app-icon name="plus" />{{ editandoHuesped() === null ? "Agregar
+          huésped" : "Guardar huésped" }}
+        </button>
+      </div>
+    </form>
+  </section>
+</div>
+}

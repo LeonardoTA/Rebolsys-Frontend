@@ -1,0 +1,57 @@
+<a class="button no-print" routerLink="/ventas/historial"
+  ><app-icon name="arrow" />Regresar al historial</a
+>
+@if (error()) {
+<div class="error-state panel" role="alert">
+  {{ error() }}<button class="button" (click)="cargar()">Reintentar</button>
+</div>
+} @else if (venta(); as v) {
+<div class="sale-detail">
+  <section class="panel no-print">
+    <p class="eyebrow">VENTA #{{ v.numero }}</p>
+    <h2>
+      {{ v.modoVenta === 'SEPARADA' ? 'Venta con comprobante separado' :
+      'Consumo añadido a una reserva' }}
+    </h2>
+    <p>{{ v.fechaVenta | date: 'dd/MM/yyyy HH:mm' }}</p>
+    <p>Comprador: <strong>{{ v.compradorNombre }}</strong></p>
+    @if (v.habitacion) {
+    <p>Habitación: <strong>{{ v.habitacion }}</strong></p>
+    }
+    <p>
+      Estado del cobro:
+      <strong>{{ v.estadoCobro === 'PAGADO' ? 'Pagado' : 'Pendiente' }}</strong>
+    </p>
+    <div class="detail-lines">
+      @for (l of v.detalles; track l.idConsumo) {
+      <div>
+        <span>{{ l.cantidad }} × {{ l.nombreProducto }}</span
+        ><strong>{{ l.total | currency: 'PEN' : 'S/ ' }}</strong>
+      </div>
+      }
+    </div>
+    <p>
+      Total de esta venta:
+      <strong>{{ v.total | currency: 'PEN' : 'S/ ' }}</strong>
+    </p>
+    @if (v.modoVenta === 'CARGO_RESERVA') {
+    <p class="muted">
+      El cobro se gestiona desde la cuenta de la reserva. Un comprobante emitido
+      puede incluir otros cargos de esa cuenta.
+    </p>
+    <a class="button" routerLink="/reservas">Ver reservas</a>
+    } @if (v.editable) {
+    <a class="button" [routerLink]="['/ventas', v.idVenta, 'editar']"
+      ><app-icon name="edit" />Editar venta pendiente</a
+    >
+    }
+    <button class="button primary" (click)="imprimir()">
+      <app-icon name="print" />Imprimir {{ v.comprobante ? 'comprobante' :
+      'constancia' }}
+    </button>
+  </section>
+  <aside class="receipt-sheet"><app-venta-ticket [venta]="v" /></aside>
+</div>
+} @else {
+<div class="loading-state">Cargando venta…</div>
+}

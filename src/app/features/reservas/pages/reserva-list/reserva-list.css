@@ -1,0 +1,200 @@
+:host {
+  display: block;
+}
+.reservations-table {
+  min-width: 1080px;
+}
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #b7b7c4;
+  padding: 7px 12px;
+  border-radius: 8px;
+  flex: 1;
+  max-width: 600px;
+}
+.search-field input {
+  background: none;
+  border: 0;
+  padding: 5px 0;
+  min-width: 0;
+  width: 100%;
+}
+.filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.filter-controls select {
+  background: white;
+  width: 190px;
+}
+.reservation-id {
+  color: var(--azul);
+  font-weight: 600;
+  font-size: 15px;
+}
+.customer-name {
+  font-size: 15px;
+}
+.room-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.room-chips span {
+  background: #ebe8fa;
+  color: var(--azul);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 13px;
+}
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  min-width: 240px;
+}
+.action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 37px;
+  height: 37px;
+  border: 0;
+  border-radius: 10px;
+}
+.edit-action {
+  background: #ffdf00;
+  color: black;
+}
+.cancel-action {
+  background: var(--rojo);
+  color: white;
+}
+.receipt-button {
+  background: var(--celeste);
+  color: white;
+  border-color: var(--celeste);
+}
+.pay-button {
+  background: #0f7b39;
+  color: white;
+  border-color: #0f7b39;
+}
+td .paid-text {
+  color: #218139;
+}
+td .pending-text {
+  color: #965d05;
+}
+.pagination,
+.pagination > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.pagination {
+  padding: 20px;
+  font-size: 13px;
+}
+.pagination label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pagination select {
+  width: 65px;
+  min-height: 34px;
+  background: white;
+  padding: 5px;
+}
+.add-reservation {
+  text-align: center;
+  margin: 24px 0 16px;
+}
+.add-reservation .button {
+  padding: 15px 24px;
+  font-size: 17px;
+}
+.list-note {
+  text-align: center;
+  color: #666;
+  font-size: 13px;
+}
+.receipt-brand {
+  text-align: center;
+  border-bottom: 1px dashed #aaa;
+  padding-bottom: 20px;
+}
+.receipt-brand app-icon {
+  display: flex;
+  margin: auto;
+  width: 45px;
+  height: 45px;
+}
+.receipt-brand strong {
+  display: block;
+  font-size: 26px;
+  font-family: Georgia, serif;
+  margin-top: 8px;
+}
+.receipt-brand small {
+  display: block;
+  color: #666;
+  letter-spacing: 1px;
+  margin-top: 5px;
+}
+.receipt-sheet h2,
+.receipt-number {
+  text-align: center;
+}
+.receipt-data {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin: 22px 0;
+  font-size: 13px;
+  color: #666;
+}
+.receipt-data strong {
+  display: block;
+  font-size: 14px;
+  color: #222;
+  margin-top: 4px;
+}
+.receipt-sheet table {
+  font-size: 13px;
+}
+.receipt-sheet td,
+.receipt-sheet th {
+  padding: 12px 8px;
+}
+.receipt-disclaimer {
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+}
+@media (max-width: 700px) {
+  .search-field {
+    max-width: none;
+    width: 100%;
+    flex: auto;
+  }
+  .filter-controls {
+    width: 100%;
+  }
+  .pagination,
+  .pagination > div {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+  }
+}
+
+.refund-check {display:flex;gap:10px;align-items:flex-start;margin:18px 0;line-height:1.6;} .refund-check input {flex:0 0 auto;width:18px;height:18px;margin-top:5px;}
+
+.store-consumptions{margin:20px 0;padding:18px;background:#f8f6fc;border-radius:10px}.store-consumptions h3{font-size:16px;margin-top:0}.store-consumptions p{display:flex;justify-content:space-between;gap:14px;font-size:13px}.receipt-options{padding:12px;margin:15px 0;background:#f6f4fb;border-radius:8px}.receipt-options p{font-size:12px}.receipt-options .button{margin:4px;}

@@ -1,0 +1,82 @@
+<div class="modal-backdrop" (click)="!guardando() && cerrar.emit()">
+  <section
+    class="modal"
+    appDialog
+    (dialogEscape)="!guardando() && cerrar.emit()"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="ocupacion-titulo"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="modal-header">
+      <span class="feature-icon lavender"><app-icon name="bed" /></span>
+      <button
+        class="icon-button"
+        aria-label="Cerrar ocupación"
+        [disabled]="guardando()"
+        (click)="cerrar.emit()"
+      >
+        <app-icon name="close" />
+      </button>
+    </header>
+    <p class="eyebrow">HABITACIÓN {{ habitacion().numero }}</p>
+    <h2 id="ocupacion-titulo">Configurar ocupación</h2>
+    <p class="subtitle">
+      Define los límites reales de esta habitación. Todos los menores cuentan
+      como personas alojadas.
+    </p>
+    <form [formGroup]="form" (ngSubmit)="guardar()">
+      <label class="field"
+        >Máximo de personas<input
+          type="number"
+          min="1"
+          max="99"
+          step="1"
+          formControlName="capacidadPersonas"
+        /><small
+          >Incluye adultos y menores, con o sin plaza propia.</small
+        ></label
+      >
+      <label class="field"
+        >Plazas de cama disponibles<input
+          type="number"
+          min="1"
+          max="99"
+          step="1"
+          formControlName="plazasCama"
+        /><small>Una cama matrimonial puede tener dos plazas.</small></label
+      >
+      <label class="field"
+        >Máximo de menores sin plaza propia<input
+          type="number"
+          min="0"
+          max="98"
+          step="1"
+          formControlName="maxMenoresSinCama"
+        /><small
+          >Solo menores de 7 años al ingresar. Usa 0 para no permitir esta
+          opción.</small
+        ></label
+      >
+      <p class="inline-note">
+        Cambiar estos límites no modifica el precio de la habitación.
+      </p>
+      @if (error()) {
+      <p class="error-box" role="alert">{{ error() }}</p>
+      }
+      <div class="modal-actions">
+        <button
+          class="button"
+          type="button"
+          [disabled]="guardando()"
+          (click)="cerrar.emit()"
+        >
+          Cancelar
+        </button>
+        <button class="button primary" type="submit" [disabled]="guardando()">
+          {{ guardando() ? 'Guardando…' : 'Guardar ocupación' }}
+        </button>
+      </div>
+    </form>
+  </section>
+</div>

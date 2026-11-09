@@ -1,0 +1,68 @@
+:host {
+  display: block;
+}
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+}
+.workspace {
+  grid-column: 2;
+  min-width: 0;
+}
+main {
+  padding: 30px;
+}
+.menu-backdrop {
+  display: none;
+}
+@media (min-width: 1700px) {
+  .app-shell {
+    grid-template-columns: 320px minmax(0, 1fr);
+  }
+  main {
+    padding: 32px 38px;
+  }
+}
+@media (max-width: 1000px) {
+  .app-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace {
+    grid-column: 1;
+  }
+  app-sidebar {
+    position: fixed;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.2s;
+  }
+  .menu-open app-sidebar {
+    transform: none;
+  }
+  .menu-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: #0006;
+    border: 0;
+    z-index: 40;
+  }
+  main {
+    padding: 24px 18px;
+  }
+}
+@media print {
+  app-sidebar,
+  app-header,
+  .menu-backdrop {
+    display: none !important;
+  }
+  .app-shell,
+  .workspace {
+    display: block;
+  }
+  main {
+    padding: 0;
+  }
+}

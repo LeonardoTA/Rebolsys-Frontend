@@ -1,0 +1,266 @@
+<div class="shop-heading no-print">
+  <div>
+    <p class="eyebrow">TIENDITA DEL HOSPEDAJE</p>
+    <h2>{{ id() ? 'Editar venta pendiente' : 'Registrar venta' }}</h2>
+  </div>
+  <div>
+    <a routerLink="/ventas/historial" class="button"
+      ><app-icon name="receipt" />Historial</a
+    ><a routerLink="/productos" class="button"
+      ><app-icon name="box" />Productos</a
+    >
+  </div>
+</div>
+@if (cargando()) {
+<div class="loading-state panel">Preparando la tienda…</div>
+} @else {
+<div class="shop-layout no-print">
+  <main class="catalog-area">
+    <section class="buyer-panel panel">
+      @if (id()) {
+      <p class="eyebrow">
+        VENTA #{{ original()?.numero }} · HABITACIÓN {{ original()?.habitacion
+        }}
+      </p>
+      <label class="field"
+        >Comprador<input
+          maxlength="200"
+          [ngModel]="compradorNombre()"
+          (ngModelChange)="compradorNombre.set($event)"
+      /></label>
+      <p class="buyer-note">
+        Edita los productos y sus cantidades. Puedes reutilizar las unidades ya
+        incluidas en esta venta.
+      </p>
+      } @else {
+      <div class="buyer-switch">
+        <button
+          class="button"
+          [class.selected]="tipoComprador() === 'HOSPEDAJE'"
+          (click)="cambiarComprador('HOSPEDAJE')"
+        >
+          <app-icon name="bed" />Cliente o huésped</button
+        ><button
+          class="button"
+          [class.selected]="tipoComprador() === 'EXTERNO'"
+          (click)="cambiarComprador('EXTERNO')"
+        >
+          <app-icon name="users" />Cliente externo
+        </button>
+      </div>
+      @if (tipoComprador() === "HOSPEDAJE") {
+      <div class="buyer-fields">
+        <label class="field"
+          >Buscar habitación o reserva<input
+            [ngModel]="buscarHabitacion()"
+            (ngModelChange)="buscarHabitacion.set($event)"
+            placeholder="Ej. 202, nombre del cliente…" /></label
+        ><label class="field"
+          >Asignar a habitación<select
+            [ngModel]="reservaId()"
+            (ngModelChange)="elegirReserva($event)"
+          >
+            <option [ngValue]="null">Seleccionar habitación y reserva</option>
+            @for (r of reservasVisibles(); track r.idDetalleReserva) {
+            <option [ngValue]="r.idDetalleReserva">
+              {{ r.habitacion }} · Reserva #{{ r.numero }} · {{ r.clienteNombre
+              }}
+            </option>
+            }
+          </select></label
+        ><label class="field"
+          >Comprador<input
+            list="compradores-tienda"
+            maxlength="200"
+            [ngModel]="compradorNombre()"
+            (ngModelChange)="compradorNombre.set($event)"
+            placeholder="Nombre del cliente o huésped"
+          /><datalist id="compradores-tienda">
+            @if (seleccionada(); as r) {
+            <option [value]="r.clienteNombre"></option>
+            @for (h of r.huespedes; track $index) {
+            <option [value]="h"></option>
+            } }
+          </datalist></label
+        ><label class="field"
+          >Destino del cobro<select
+            [ngModel]="modoVenta()"
+            (ngModelChange)="modoVenta.set($event)"
+          >
+            <option value="CARGO_RESERVA">
+              Añadir a la cuenta de la reserva
+            </option>
+            <option value="SEPARADA">Cobrar aparte y emitir comprobante</option>
+          </select></label
+        >
+      </div>
+      @if (seleccionada(); as r) {
+      <p class="buyer-note">
+        <app-icon name="info" />{{ modoVenta() === "CARGO_RESERVA" ? "El consumo
+        quedará pendiente en la reserva #" + r.numero + ", a cargo de su
+        titular." : "Esta venta tendrá pago y comprobante propios; no aumentará
+        el saldo de la reserva." }}
+      </p>
+      } } @else {
+      <label class="field external-name"
+        >Nombre para el ticket <span class="optional">Opcional</span
+        ><input
+          [ngModel]="compradorNombre()"
+          (ngModelChange)="compradorNombre.set($event)"
+          maxlength="200"
+          placeholder="Venta al público"
+      /></label>
+      <p class="buyer-note">
+        El comprador externo no necesita registrarse como cliente o huésped.
+      </p>
+      } }
+    </section>
+    <div class="catalog-toolbar">
+      <div class="category-pills">
+        <button
+          [class.active]="categoria() === null"
+          (click)="categoria.set(null)"
+        >
+          Todos
+        </button>
+        @for (c of categorias(); track c.idCategoria) {
+        <button
+          [class.active]="categoria() === c.idCategoria"
+          (click)="categoria.set(c.idCategoria)"
+        >
+          {{ c.nombreCategoria }}
+        </button>
+        }
+      </div>
+      <div class="search-field">
+        <app-icon name="search" /><input
+          aria-label="Buscar en el catálogo"
+          [ngModel]="buscar()"
+          (ngModelChange)="buscar.set($event)"
+          placeholder="Buscar producto…"
+        />
+      </div>
+    </div>
+    @if (error()) {
+    <div class="error-box" role="alert">{{ error() }}</div>
+    }
+    <div class="product-grid">
+      @for (p of visibles(); track p.idProducto) {
+      <article class="product-card" [class.sold-out]="p.stock === 0">
+        <div class="product-image">
+          <img
+            [src]="imagen(p)"
+            (error)="errorImagen(p.idProducto)"
+            [alt]="p.nombreProducto"
+          /><span class="stock-chip" [class.empty]="p.stock === 0"
+            >{{ p.stock === 0 ? "AGOTADO" : "STOCK: " + p.stock }}</span
+          >
+        </div>
+        <div class="product-copy">
+          <h3>{{ p.nombreProducto }}</h3>
+          <p>{{ p.categoriaNombre }}</p>
+          <div>
+            <strong>{{ p.precioActual | currency: "PEN" : "S/ " }}</strong
+            ><button
+              class="cart-add"
+              [disabled]="guardando() || cantidad(p.idProducto) >= p.stock"
+              [attr.aria-label]="'Agregar ' + p.nombreProducto"
+              (click)="agregar(p)"
+            >
+              <app-icon name="cart" />
+            </button>
+          </div>
+        </div>
+      </article>
+      } @empty {
+      <div class="empty-state empty-catalog">
+        <app-icon name="box" />
+        <h3>
+          {{ productos().length ? "No hay coincidencias" : "El catálogo está
+          vacío" }}
+        </h3>
+        <p>
+          {{ productos().length ? "Prueba otra búsqueda o categoría." : "Agrega
+          los productos de la tiendita para comenzar." }}
+        </p>
+        <a routerLink="/productos/nuevo" class="button primary"
+          >Agregar producto</a
+        >
+      </div>
+      }
+    </div>
+  </main>
+  <app-venta-carrito
+    [carrito]="carrito()"
+    [guardando]="guardando()"
+    [modoVenta]="modoVenta()"
+    [editando]="!!id()"
+    (agregar)="agregar($event)"
+    (restar)="restar($event)"
+    (quitar)="quitar($event)"
+    (confirmar)="confirmarVenta()"
+  />
+</div>
+} @if (pagoAbierto()) {
+<app-pago-modal
+  [total]="total()"
+  [esNueva]="false"
+  [permiteParcial]="false"
+  [ocupado]="guardando()"
+  [error]="errorPago()"
+  (cerrar)="pagoAbierto.set(false)"
+  (confirmar)="registrar($event.recibido)"
+/>
+} @if (venta(); as v) {
+<div class="modal-backdrop receipt-overlay" (click)="venta.set(null)">
+  <section
+    appDialog
+    (dialogEscape)="venta.set(null)"
+    class="sale-success modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="venta-exito"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="success-copy no-print">
+      <span class="success-mark"><app-icon name="check" /></span>
+      <p class="eyebrow">VENTA #{{ v.numero }}</p>
+      <h2 id="venta-exito">
+        {{ v.modoVenta === "SEPARADA" ? "¡Venta registrada con éxito!" :
+        "Consumo añadido a la reserva" }}
+      </h2>
+      <p class="muted">
+        {{ v.modoVenta === "SEPARADA" ? "El pago en efectivo y el comprobante
+        interno quedaron registrados." : "El importe se añadió a la cuenta de la
+        habitación " + v.habitacion + ". No se registró un pago." }}
+      </p>
+      <div class="stock-result">
+        <app-icon name="box" />
+        <div>
+          <strong>Inventario actualizado</strong>
+          @for (l of v.detalles; track l.idConsumo) {
+          <small
+            >{{ l.nombreProducto }} · Stock restante: {{ l.stockRestante
+            }}</small
+          >
+          }
+        </div>
+      </div>
+      @if (v.modoVenta === "SEPARADA") {
+      <p>Vuelto: <strong>{{ v.vuelto | currency: "PEN" : "S/ " }}</strong></p>
+      }
+      <button class="button primary full" (click)="imprimir()">
+        <app-icon name="print" />{{ v.comprobante ? "Imprimir comprobante" :
+        "Imprimir constancia" }}</button
+      ><button class="button full" (click)="nuevaVenta()">
+        <app-icon name="plus" />Nueva venta</button
+      ><a class="text-button" routerLink="/ventas/historial"
+        >Ver historial de ventas</a
+      >
+    </div>
+    <div class="success-ticket receipt-sheet">
+      <app-venta-ticket [venta]="v" />
+    </div>
+  </section>
+</div>
+}

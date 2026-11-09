@@ -1,0 +1,14 @@
+<router-outlet />
+@if (avisos.actual(); as aviso) {
+  <div class="toast" [class.toast-error]="aviso.error" role="status">
+    <app-icon [name]="aviso.error ? 'info' : 'check'" />
+    <span>{{ aviso.texto }}</span>
+    <button
+      class="icon-button"
+      aria-label="Cerrar aviso"
+      (click)="avisos.actual.set(null)"
+    >
+      <app-icon name="close" />
+    </button>
+  </div>
+}

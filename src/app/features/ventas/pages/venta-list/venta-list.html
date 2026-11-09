@@ -1,0 +1,101 @@
+<div class="page-heading">
+  <div>
+    <h2>Historial de ventas</h2>
+    <p class="muted">Ventas separadas y consumos añadidos a reservas.</p>
+  </div>
+  <a routerLink="/ventas" class="button primary"
+    ><app-icon name="plus" />Nueva venta</a
+  >
+</div>
+<section class="panel">
+  @if (cargando()) {
+  <div class="loading-state">Cargando ventas…</div>
+  } @else if (error()) {
+  <div class="error-state" role="alert">
+    {{ error() }}<button class="button" (click)="cargar()">Reintentar</button>
+  </div>
+  } @else {
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>N.º VENTA</th>
+          <th>FECHA</th>
+          <th>COMPRADOR</th>
+          <th>DESTINO</th>
+          <th>TOTAL</th>
+          <th>COBRO</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (v of respuesta()?.contenido; track v.idVenta) {
+        <tr>
+          <td>
+            <a [routerLink]="['/ventas', v.idVenta]">#{{ v.numero }}</a>
+          </td>
+          <td>{{ v.fechaVenta | date: 'dd/MM/yyyy HH:mm' }}</td>
+          <td>{{ v.compradorNombre }}</td>
+          <td>
+            {{ v.modoVenta === 'SEPARADA' ? 'Venta separada' : 'Habitación ' +
+            v.habitacion }} @if (v.referenciaReserva) {
+            <small>Reserva {{ v.referenciaReserva }}</small>
+            }
+          </td>
+          <td>{{ v.total | currency: 'PEN' : 'S/ ' }}</td>
+          <td>
+            <span class="badge" [class.confirmada]="v.estadoCobro === 'PAGADO'"
+              >{{ v.estadoCobro === 'PAGADO' ? 'Pagado' : v.estadoCobro ===
+              'ANULADO' ? 'Anulado' : 'Pendiente' }}</span
+            >
+          </td>
+          <td>
+            <a class="button small" [routerLink]="['/ventas', v.idVenta]"
+              >Ver detalle</a
+            >
+            @if (v.editable) {
+            <a
+              class="button small"
+              [routerLink]="['/ventas', v.idVenta, 'editar']"
+              ><app-icon name="edit" />Editar</a
+            >
+            }
+          </td>
+        </tr>
+        } @empty {
+        <tr>
+          <td colspan="7">
+            <div class="empty-state">
+              <app-icon name="receipt" />
+              <h3>Aún no hay ventas registradas</h3>
+              <a routerLink="/ventas" class="button primary">Registrar venta</a>
+            </div>
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination">
+    <span>{{ respuesta()?.totalElementos || 0 }} ventas</span>
+    <div>
+      <button
+        class="button small"
+        [disabled]="pagina === 0"
+        (click)="pagina = pagina - 1; cargar()"
+      >
+        Anterior</button
+      ><span
+        >Página {{ respuesta()?.totalPaginas ? pagina + 1 : 0 }} de {{
+        respuesta()?.totalPaginas || 0 }}</span
+      ><button
+        class="button small"
+        [disabled]="respuesta()?.ultima ?? true"
+        (click)="pagina = pagina + 1; cargar()"
+      >
+        Siguiente
+      </button>
+    </div>
+  </div>
+  }
+</section>
