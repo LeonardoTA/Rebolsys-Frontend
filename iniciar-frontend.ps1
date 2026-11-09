@@ -6,7 +6,9 @@ $env:TEMP = Join-Path $rebolsysWork 'tmp'
 $env:TMP = $env:TEMP
 $env:npm_config_cache = Join-Path $rebolsysWork 'npm-cache'
 $rebolsysProxy = Join-Path $rebolsysWork 'proxy-frontend.json'
-@{ '/api' = @{ target = "http://127.0.0.1:$PuertoApi"; secure = $false } } | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $rebolsysProxy -Encoding utf8
+$rebolsysProxyJson = @{ '/api' = @{ target = "http://127.0.0.1:$PuertoApi"; secure = $false } } | ConvertTo-Json -Depth 3
+# Windows PowerShell 5 agrega BOM con Set-Content -Encoding utf8; Angular exige JSON sin BOM.
+[System.IO.File]::WriteAllText($rebolsysProxy, $rebolsysProxyJson, [System.Text.UTF8Encoding]::new($false))
 Push-Location $PSScriptRoot
 try {
     if (-not (Test-Path -LiteralPath 'node_modules')) {
