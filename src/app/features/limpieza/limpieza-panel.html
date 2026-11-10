@@ -1,0 +1,423 @@
+<section class="buc02" aria-label="Informes y habitaciones">
+  <header class="modulo-cabecera">
+    <div>
+      <p class="eyebrow">OPERACIÓN DE HOSPEDAJE</p>
+      <h2>Informes y habitaciones</h2>
+    </div>
+    <nav aria-label="Secciones de limpieza">
+      @for (v of vistas; track v.id) {
+        @if (permite(v.permiso)) {
+          <button type="button" [class.activa]="vista() === v.id" [attr.aria-current]="vista() === v.id ? 'page' : null"
+            [disabled]="ocupado()" (click)="seleccionar(v.id)">
+            <app-icon [name]="v.icono" />{{ v.nombre }}
+          </button>
+        }
+      }
+    </nav>
+  </header>
+
+  @if (aviso()) { <p class="aviso" role="status"><app-icon name="check" />{{ aviso() }}</p> }
+  @if (error()) { <p class="error-box" role="alert">{{ error() }}</p> }
+
+  @if (panel(); as p) {
+    <div class="panel-top">
+      <button class="button small" type="button" [disabled]="ocupado()" (click)="cerrarPanel()">← Volver</button>
+    </div>
+    @if (p.tipo === 'habitacion') {
+      <section class="panel ficha">
+        <header class="ficha-cabecera">
+          <div><h3>Habitación {{ p.datos.habitacion.numeroHabitacion }}</h3>
+            <p>{{ p.datos.habitacion.tipoHabitacion }} · Salida {{ fecha(p.datos.habitacion.fechaSalida) }}</p></div>
+          <span [class]="'estado ' + p.datos.habitacion.estado">{{ texto(p.datos.habitacion.estado) }}</span>
+        </header>
+        <div class="ficha-cuerpo">
+          <p>Responsable · <strong>{{ p.datos.habitacion.responsable?.usuario ?? 'Sin asignar' }}</strong></p>
+          @if (permite('INICIAR') && (p.datos.habitacion.puedeIniciarLimpieza || p.datos.habitacion.puedeRetomarBorrador)) {
+            @if (p.datos.habitacion.estado === 'DISPONIBLE') {
+              <p class="nota-operativa">Al iniciar la revisión, la habitación queda en limpieza hasta aprobar su informe.</p>
+            }
+            <button class="button small primary" [disabled]="ocupado()" (click)="iniciar(p.datos.habitacion)">
+              {{ accionHabitacion(p.datos.habitacion) }}
+            </button>
+          }
+          <div class="table-scroll">
+            <table><thead><tr><th>Ítem</th><th>Estado</th></tr></thead>
+              <tbody>@for (item of p.datos.items; track item.idDetalleHabitacion) {
+                <tr><td>{{ item.item }}</td><td><span [class]="'estado ' + item.estado">{{ texto(item.estado) }}</span></td></tr>
+              } @empty { <tr><td colspan="2" class="vacio">La habitación no tiene ítems asignados.</td></tr> }</tbody>
+            </table>
+          </div>
+          <div class="resumen-asociados">
+            <div><h4>Último informe</h4>
+              @if (p.datos.ultimoInforme; as ultimo) {
+                <p>{{ ultimo.informe.nombre }} · {{ texto(ultimo.informe.estado) }}</p>
+                <p class="muted">{{ fecha(ultimo.informe.fechaEnvio) }}</p>
+                @if (permite('VER_INFORMES')) {
+                  <button class="button small" [disabled]="ocupado()" (click)="verInforme(ultimo.informe.idInformeRevision)">Ver informe</button>
+                }
+              } @else { <p>{{ texto(p.datos.estadoInforme) }}</p> }
+            </div>
+            <div><h4>Tickets de mantenimiento</h4>
+              @for (ticket of p.datos.tickets; track ticket.idTicket) {
+                <p>{{ ticket.nombre }} · {{ ticket.item }}
+                  @if (permite('VER_TICKETS')) {
+                    <button class="button small" [disabled]="ocupado()" (click)="verTicket(ticket.idTicket)">Ver</button>
+                  }
+                </p>
+              } @empty { <p>{{ texto(p.datos.estadoTickets) }}</p> }
+            </div>
+          </div>
+        </div>
+      </section>
+    } @else if (p.tipo === 'informe') {
+      <section class="panel ficha">
+        <header class="ficha-cabecera">
+          <div><h3>Informe {{ p.datos.informe.nombre }}</h3>
+            <p>Habitación {{ p.datos.informe.numeroHabitacion }} · {{ fecha(p.datos.informe.fechaEnvio) }}</p></div>
+          <span [class]="'estado ' + p.datos.informe.estado">{{ texto(p.datos.informe.estado) }}</span>
+        </header>
+        <div class="ficha-cuerpo">
+          <p>{{ p.datos.observaciones }}</p>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Ítem</th><th>Estado encontrado</th><th>Estado efectivo</th><th>Observación</th><th>Evidencia</th><th>Ticket</th></tr></thead>
+              <tbody>@for (item of p.datos.items; track item.idDetalleInforme) {
+                <tr>
+                  <td>{{ item.item }}</td>
+                  <td><span [class]="'estado ' + item.estadoEncontrado">{{ texto(item.estadoEncontrado) }}</span></td>
+                  <td><span [class]="'estado ' + item.estadoActualItem">{{ texto(item.estadoActualItem) }}</span></td>
+                  <td class="nota">{{ item.observaciones || '—' }}</td>
+                  <td>
+                    @if (foto(item.evidencia); as ruta) {
+                      <a class="evidencia" [href]="ruta" target="_blank" rel="noopener noreferrer">Ver foto</a>
+                    } @else { {{ item.evidencia ? 'Foto registrada' : '—' }} }
+                  </td>
+                  <td>
+                    @if (item.idTicket && permite('VER_TICKETS')) {
+                      <button class="button small" [disabled]="ocupado()" (click)="verTicket(item.idTicket)">Ver ticket</button>
+                    } @else if (item.puedeCrearTicket && permite('CREAR_TICKET')) {
+                      <button class="button small primary" [disabled]="ocupado()" (click)="abrirNuevoTicket(p.datos, item)">Atender incidencia</button>
+                    } @else { {{ item.idTicket ? 'Registrado' : '—' }} }
+                  </td>
+                </tr>
+              } @empty { <tr><td colspan="6" class="vacio">El informe no contiene ítems.</td></tr> }</tbody>
+            </table>
+          </div>
+          @if (p.datos.informe.estado === 'POR_APROBAR' && p.datos.informe.incidenciasPendientes > 0) {
+            <p class="nota-operativa">Resuelve las {{ p.datos.informe.incidenciasPendientes }} incidencias pendientes para aprobar el informe.</p>
+          }
+          <div class="acciones-final">
+            @if (p.datos.informe.puedeEditar && permite('EDITAR_INFORME') && p.datos.items.length > 0) {
+              <button class="button" [disabled]="ocupado()" (click)="abrirEditarInforme(p.datos.informe.idInformeRevision)">Editar</button>
+            }
+            @if (p.datos.informe.puedeEliminar && permite('ELIMINAR_INFORME')) {
+              <button class="button danger" [disabled]="ocupado()" (click)="confirmarEliminarInforme(p.datos.informe)">Eliminar</button>
+            }
+            @if (p.datos.informe.estado === 'POR_APROBAR' && permite('APROBAR_INFORME')) {
+              <button class="button primary" [disabled]="ocupado() || !p.datos.informe.puedeAprobar"
+                (click)="aprobar(p.datos.informe.idInformeRevision)">Aprobar informe</button>
+            }
+          </div>
+        </div>
+      </section>
+    } @else if (p.tipo === 'nuevoInforme' || p.tipo === 'editarInforme') {
+      <form class="panel ficha" (ngSubmit)="guardarInforme()">
+        <header class="ficha-cabecera">
+          <div><h3>{{ p.tipo === 'nuevoInforme' ? 'Nuevo informe de limpieza' : 'Editar informe' }}</h3>
+            <p>Habitación {{ p.tipo === 'nuevoInforme' ? p.datos.habitacion.numeroHabitacion : p.datos.informe.numeroHabitacion }}</p></div>
+          <span [class]="'estado ' + (p.tipo === 'nuevoInforme' ? 'EN_LIMPIEZA' : 'POR_APROBAR')">
+            {{ p.tipo === 'nuevoInforme' ? 'En limpieza' : 'Por aprobar' }}
+          </span>
+        </header>
+        <div class="ficha-cuerpo">
+          <p class="muted">Selecciona un estado por ítem. Adjunta una foto si registras una incidencia.</p>
+          <div class="table-scroll">
+            <table class="tabla-formulario">
+              <thead><tr><th>Ítem</th><th>Estado</th><th>Observación</th><th>Evidencia</th></tr></thead>
+              <tbody>@for (fila of filas(); track fila.idDetalleHabitacion) {
+                <tr>
+                  <td><strong>{{ fila.item }}</strong></td>
+                  <td>
+                    <div class="opciones-estado" [attr.aria-label]="'Estado de ' + fila.item">
+                      @for (estado of estadosItem; track estado) {
+                        <button type="button" class="opcion-estado" [class.seleccionada]="fila.estadoEncontrado === estado"
+                          [attr.aria-pressed]="fila.estadoEncontrado === estado" [disabled]="ocupado() || fila.estadoFijo"
+                          (click)="editarFila(fila.idDetalleHabitacion, { estadoEncontrado: estado })">{{ texto(estado) }}</button>
+                      }
+                    </div>
+                    @if (fila.estadoFijo) { <small class="muted">El ítem tiene un ticket.</small> }
+                  </td>
+                  <td><textarea [attr.aria-label]="'Observación de ' + fila.item" [ngModel]="fila.observaciones"
+                    (ngModelChange)="editarFila(fila.idDetalleHabitacion, { observaciones: $event })"
+                    [name]="'observacion' + fila.idDetalleHabitacion" maxlength="1000" rows="2" placeholder="Añade una observación"></textarea></td>
+                  <td>
+                    @if (foto(fila.evidencia); as ruta) { <a class="evidencia" [href]="ruta" target="_blank" rel="noopener noreferrer">Ver foto</a> }
+                    @else if (fila.evidencia) { <small>Foto registrada</small> }
+                    @if (permite('CARGAR_EVIDENCIA')) {
+                      <label class="cargar-foto">{{ fila.evidencia ? 'Cambiar foto' : 'Adjuntar foto' }}
+                        <input type="file" accept="image/jpeg,image/png" [disabled]="ocupado()"
+                          (change)="cargarFoto($event, fila.idDetalleHabitacion)" />
+                      </label>
+                    }
+                    @if (fila.estadoEncontrado && fila.estadoEncontrado !== 'BUENO' && !fila.evidencia) {
+                      <small class="requerida">Foto requerida</small>
+                    }
+                  </td>
+                </tr>
+              } @empty { <tr><td colspan="4" class="vacio">La habitación no tiene ítems asignados.</td></tr> }</tbody>
+            </table>
+          </div>
+          @if (p.tipo === 'nuevoInforme') {
+            <label>Observaciones generales <textarea name="observaciones" [(ngModel)]="observaciones" rows="2" maxlength="1000"></textarea></label>
+          }
+          @if (!puedeGuardarInforme()) { <p class="nota-operativa">Completa los estados y adjunta las fotos requeridas.</p> }
+          <div class="acciones-final">
+            @if (p.tipo === 'nuevoInforme' && permite('CANCELAR_BORRADOR')) {
+              <button class="button" type="button" [disabled]="ocupado()" (click)="confirmarCancelarBorrador(p.datos.idInformeRevision)">Descartar borrador</button>
+            }
+            @if (p.tipo === 'editarInforme' || permite('ENVIAR_INFORME')) {
+              <button class="button primary" type="submit" [disabled]="ocupado() || !puedeGuardarInforme()">
+                {{ p.tipo === 'nuevoInforme' ? 'Enviar informe' : 'Guardar cambios' }}
+              </button>
+            }
+          </div>
+        </div>
+      </form>
+    } @else if (p.tipo === 'ticket') {
+      <section class="panel ficha">
+        <header class="ficha-cabecera">
+          <div><h3>Ticket {{ p.datos.ticket.nombre }}</h3>
+            <p>Habitación {{ p.datos.ticket.numeroHabitacion }} · {{ fecha(p.datos.ticket.fechaGeneracion) }}</p></div>
+          <span [class]="'estado ' + p.datos.ticket.estado">{{ texto(p.datos.ticket.estado) }}</span>
+        </header>
+        <div class="ficha-cuerpo">
+          <div class="resumen-asociados">
+            <div><h4>Ítem</h4><p>{{ p.datos.ticket.item }}</p></div>
+            <div><h4>Acción</h4><p>{{ texto(p.datos.ticket.tipoAccion) }}</p></div>
+            @if (p.datos.ticket.tipoAccion === 'REPARACION') {
+              <div><h4>Costo</h4><p>{{ p.datos.costoReparacion == null ? '—' : (p.datos.costoReparacion | currency:'PEN':'S/ ') }}</p></div>
+            }
+            <div><h4>Fecha de resolución</h4><p>{{ fecha(p.datos.fechaResolucion) }}</p></div>
+          </div>
+          <div><h4>Observación técnica</h4><p>{{ p.datos.observacionTecnica || 'Sin observaciones.' }}</p></div>
+          <div><h4>Evidencia</h4>
+            @if (foto(p.datos.evidencia); as ruta) { <a class="evidencia" [href]="ruta" target="_blank" rel="noopener noreferrer">Ver foto</a> }
+            @else { <p>{{ p.datos.evidencia ? 'Foto registrada' : 'Sin evidencia registrada.' }}</p> }
+          </div>
+          <div class="acciones-final">
+            @if (permite('VER_INFORMES')) {
+              <button class="button" [disabled]="ocupado()" (click)="verInforme(p.datos.ticket.idInformeRevision)">Ver informe asociado</button>
+            }
+            @if (p.datos.ticket.puedeEditar && permite('EDITAR_TICKET')) {
+              <button class="button" [disabled]="ocupado()" (click)="abrirEditarTicket(p.datos.ticket.idTicket)">Editar</button>
+            }
+            @if (p.datos.ticket.puedeEliminar && permite('ELIMINAR_TICKET')) {
+              <button class="button danger" [disabled]="ocupado()" (click)="confirmarEliminarTicket(p.datos.ticket)">Eliminar</button>
+            }
+          </div>
+        </div>
+      </section>
+    } @else if (p.tipo === 'nuevoTicket' || p.tipo === 'editarTicket') {
+      <form class="panel ficha" #ticketForm="ngForm" (ngSubmit)="guardarTicket()">
+        <header class="ficha-cabecera">
+          <div><h3>{{ p.tipo === 'nuevoTicket' ? 'Generar ticket' : 'Editar ticket ' + p.datos.ticket.nombre }}</h3>
+            <p>{{ p.tipo === 'nuevoTicket' ? 'Informe ' + p.informe.informe.nombre : 'Habitación ' + p.datos.ticket.numeroHabitacion }}</p></div>
+          <span class="estado POR_APROBAR">{{ p.tipo === 'nuevoTicket' ? 'Por registrar' : 'Por actualizar' }}</span>
+        </header>
+        <div class="ficha-cuerpo">
+          <div class="resumen-asociados">
+            <div><h4>Ítem afectado</h4><p>{{ p.tipo === 'nuevoTicket' ? p.item.item : p.datos.ticket.item }}</p></div>
+            <label>Tipo de acción
+              <select name="accion" [ngModel]="accion()" (ngModelChange)="cambiarAccion($event)" required>
+                <option value="">Seleccionar</option>
+                @for (tipo of acciones; track tipo) { <option [value]="tipo">{{ texto(tipo) }}</option> }
+              </select>
+            </label>
+            @if (accion() === 'REPARACION') {
+              <label>Costo de reparación (S/) <input name="costo" type="number" min="0" max="99999999.99" step="0.01" [(ngModel)]="costo" /></label>
+            }
+          </div>
+          <label>Observación técnica <textarea name="observacion" rows="3" [(ngModel)]="observacionTecnica" maxlength="1000"></textarea></label>
+          <div><h4>Evidencia fotográfica</h4>
+            @if (foto(evidenciaTicket()); as ruta) { <a class="evidencia" [href]="ruta" target="_blank" rel="noopener noreferrer">Ver foto</a> }
+            @else if (evidenciaTicket()) { <p>Foto registrada.</p> }
+            @if (p.tipo === 'nuevoTicket' && permite('CARGAR_EVIDENCIA')) {
+              <label class="cargar-foto">{{ evidenciaTicket() ? 'Cambiar foto' : 'Adjuntar foto' }}
+                <input type="file" accept="image/jpeg,image/png" [disabled]="ocupado()" (change)="cargarFoto($event)" />
+              </label>
+            }
+            @if (p.tipo === 'nuevoTicket' && !evidenciaTicket()) { <p class="requerida">Se requiere una foto para generar el ticket.</p> }
+          </div>
+          <div class="acciones-final">
+            <button class="button" type="button" [disabled]="ocupado()" (click)="cerrarPanel()">Cancelar</button>
+            <button class="button acento" type="submit" [disabled]="ocupado() || ticketForm.invalid || (p.tipo === 'nuevoTicket' && !evidenciaTicket())">
+              {{ p.tipo === 'nuevoTicket' ? 'Generar ticket' : 'Guardar cambios' }}
+            </button>
+          </div>
+        </div>
+      </form>
+    }
+  } @else {
+    <div class="subtitulo">
+      <h3>{{ vista() === 'inicio' ? 'Resumen de informes y tickets' : texto(vista() === 'habitaciones' ? 'Habitaciones' : vista() === 'informes' ? 'Informes' : 'Tickets') }}</h3>
+      @switch (vista()) {
+        @case ('habitaciones') { <p>Inicia la limpieza o consulta los ítems, informes y tickets de cada habitación.</p> }
+        @case ('informes') { <p>Consulta los informes enviados y resuelve sus incidencias antes de aprobarlos.</p> }
+        @case ('tickets') { <p>Consulta las reparaciones y reposiciones registradas por ítem.</p> }
+      }
+    </div>
+    @switch (vista()) {
+      @case ('habitaciones') {
+        <form class="panel filtros" (ngSubmit)="filtrar()">
+          <label>Habitación <input name="numero" [(ngModel)]="filtrosHabitacion.numeroHabitacion" placeholder="Número de habitación" /></label>
+          <label>Tipo
+            <select name="tipo" [(ngModel)]="filtrosHabitacion.idTipoHabitacion">
+              <option value="">Todos</option>@for (tipo of tipos(); track tipo.id) { <option [value]="tipo.id">{{ tipo.nombre }}</option> }
+            </select>
+          </label>
+          <label>Estado <select name="estado" [(ngModel)]="filtrosHabitacion.estado">
+            <option value="">Todos</option>@for (estado of estadosHabitacion; track estado) { <option [value]="estado">{{ texto(estado) }}</option> }
+          </select></label>
+          <label>Fecha de salida <input type="date" name="fecha" [(ngModel)]="filtrosHabitacion.fechaSalida" /></label>
+          <button class="button primary" type="submit">Aplicar filtros</button>
+        </form>
+      }
+      @case ('informes') {
+        <form class="panel filtros" (ngSubmit)="filtrar()">
+          <label>Informe <input name="nombre" [(ngModel)]="filtrosInforme.nombre" placeholder="Nombre del informe" /></label>
+          <label>Habitación <input name="numero" [(ngModel)]="filtrosInforme.numeroHabitacion" placeholder="Número" /></label>
+          <label>Estado <select name="estado" [(ngModel)]="filtrosInforme.estado"><option value="">Todos</option>
+            <option value="POR_APROBAR">Por aprobar</option><option value="APROBADO">Aprobado</option>
+          </select></label>
+          <label>Fecha de emisión <input type="date" name="fecha" [(ngModel)]="filtrosInforme.fechaEmision" /></label>
+          <button class="button primary" type="submit">Aplicar filtros</button>
+        </form>
+      }
+      @case ('tickets') {
+        @if (permite('VER_INFORMES') && permite('CREAR_TICKET')) {
+          <p class="nota-operativa">Los tickets registran incidencias atendidas. Para atender una nueva, abre su informe por aprobar.</p>
+          <button class="button small" type="button" (click)="verInformesPorAtender()">Ver informes por atender</button>
+        }
+        <form class="panel filtros" (ngSubmit)="filtrar()">
+          <label>Ticket <input name="nombre" [(ngModel)]="filtrosTicket.nombre" placeholder="Nombre del ticket" /></label>
+          <label>Habitación <input name="numero" [(ngModel)]="filtrosTicket.numeroHabitacion" placeholder="Número" /></label>
+          <label>Acción <select name="accion" [(ngModel)]="filtrosTicket.tipoAccion"><option value="">Todas</option>
+            @for (tipo of acciones; track tipo) { <option [value]="tipo">{{ texto(tipo) }}</option> }
+          </select></label>
+          <label>Fecha de emisión <input type="date" name="fecha" [(ngModel)]="filtrosTicket.fechaEmision" /></label>
+          <button class="button primary" type="submit">Aplicar filtros</button>
+        </form>
+      }
+    }
+    @if (cargando()) { <p class="loading-state" role="status">Cargando…</p> }
+    @else if (resultado(); as r) {
+      @switch (r.vista) {
+        @case ('inicio') {
+          @if (r.datos.alcance === 'GENERAL') { <p class="muted">Resumen general del hospedaje. Incluye los informes y tickets de todo el personal.</p> }
+          @else if (r.datos.alcance === 'DIA') { <p class="muted">Tu actividad de hoy · {{ fecha(r.datos.fechaApertura) }}</p> }
+          @else if (r.datos.idTurno) { <p class="muted">Turno #{{ r.datos.idTurno }} · Apertura {{ fecha(r.datos.fechaApertura) }}</p> }
+          @else { <p class="nota-operativa">Abre tu turno de recepción para consultar su resumen. Puedes consultar las habitaciones, informes y tickets según tus accesos.</p> }
+          <div class="indicadores">
+            <article class="panel"><span>Informes enviados</span><strong>{{ r.datos.informesEnviados }}</strong></article>
+            <article class="panel"><span>Por aprobar</span><strong>{{ r.datos.informesPorAprobar }}</strong></article>
+            <article class="panel"><span>Informes aprobados</span><strong>{{ r.datos.informesAprobados }}</strong></article>
+            <article class="panel"><span>Tickets generados</span><strong>{{ r.datos.ticketsGenerados }}</strong></article>
+          </div>
+        }
+        @case ('habitaciones') {
+          <div class="panel table-scroll">
+            <table>
+              <thead><tr><th>Habitación</th><th>Tipo</th><th>Última salida</th><th>Estado</th><th>Responsable</th><th>Acciones</th></tr></thead>
+              <tbody>@for (h of r.datos; track h.idHabitacion) {
+                <tr>
+                  <td><strong>{{ h.numeroHabitacion }}</strong></td><td>{{ h.tipoHabitacion }}</td>
+                  <td>{{ fecha(h.fechaSalida) }}</td><td><span [class]="'estado ' + h.estado">{{ texto(h.estado) }}</span></td>
+                  <td>{{ h.responsable?.usuario ?? 'Sin asignar' }}</td>
+                  <td><div class="acciones">
+                    @if (permite('INICIAR')) {
+                      <button class="button small primary" [disabled]="ocupado() || (!h.puedeIniciarLimpieza && !h.puedeRetomarBorrador)"
+                        (click)="iniciar(h)">{{ accionHabitacion(h) }}</button>
+                    }
+                    <button class="button small" [disabled]="ocupado()" (click)="verHabitacion(h.idHabitacion)">Ver habitación</button>
+                  </div></td>
+                </tr>
+              } @empty { <tr><td colspan="6" class="vacio">No hay habitaciones con estos filtros.</td></tr> }</tbody>
+            </table>
+          </div>
+          <div class="pie-tabla"><span>{{ r.datos.length }} habitaciones</span><button class="button" (click)="cargar()">Actualizar lista</button></div>
+        }
+        @case ('informes') {
+          <div class="panel table-scroll">
+            <table>
+              <thead><tr><th>Informe</th><th>Habitación</th><th>Fecha y hora</th><th>Resultado</th><th>Estado</th><th>Tickets</th><th>Acciones</th></tr></thead>
+              <tbody>@for (i of r.datos.contenido; track i.idInformeRevision) {
+                <tr>
+                  <td><strong>{{ i.nombre }}</strong></td><td>{{ i.numeroHabitacion }}</td><td>{{ fecha(i.fechaEnvio) }}</td>
+                  <td>{{ !i.tieneIncidencias ? 'Sin incidencias' : i.incidenciasPendientes ? i.incidenciasPendientes + ' pendientes' : 'Incidencias resueltas' }}</td>
+                  <td><span [class]="'estado ' + i.estado">{{ texto(i.estado) }}</span></td>
+                  <td>{{ i.tieneTickets ? 'Asociados' : '—' }}</td>
+                  <td><div class="acciones">
+                    <button class="button small" [disabled]="ocupado()" (click)="verInforme(i.idInformeRevision)">
+                      {{ i.incidenciasPendientes && permite('CREAR_TICKET') ? 'Ver y atender' : 'Ver' }}
+                    </button>
+                    @if (permite('EDITAR_INFORME')) {
+                      <button class="button small" [disabled]="ocupado() || !i.puedeEditar" (click)="abrirEditarInforme(i.idInformeRevision)">Editar</button>
+                    }
+                    @if (permite('ELIMINAR_INFORME')) {
+                      <button class="button small danger" [disabled]="ocupado() || !i.puedeEliminar" (click)="confirmarEliminarInforme(i)">Eliminar</button>
+                    }
+                  </div></td>
+                </tr>
+              } @empty { <tr><td colspan="7" class="vacio">No hay informes con estos filtros.</td></tr> }</tbody>
+            </table>
+          </div>
+        }
+        @case ('tickets') {
+          <div class="panel table-scroll">
+            <table>
+              <thead><tr><th>Ticket</th><th>Habitación</th><th>Ítem afectado</th><th>Acción</th><th>Estado</th><th>Fecha y hora</th><th>Acciones</th></tr></thead>
+              <tbody>@for (t of r.datos.contenido; track t.idTicket) {
+                <tr>
+                  <td><strong>{{ t.nombre }}</strong></td><td>{{ t.numeroHabitacion }}</td><td>{{ t.item }}</td>
+                  <td><span [class]="'estado ' + t.tipoAccion">{{ texto(t.tipoAccion) }}</span></td>
+                  <td><span [class]="'estado ' + t.estado">{{ texto(t.estado) }}</span></td><td>{{ fecha(t.fechaGeneracion) }}</td>
+                  <td><div class="acciones">
+                    <button class="button small" [disabled]="ocupado()" (click)="verTicket(t.idTicket)">Ver</button>
+                    @if (permite('EDITAR_TICKET')) {
+                      <button class="button small" [disabled]="ocupado() || !t.puedeEditar" (click)="abrirEditarTicket(t.idTicket)">Editar</button>
+                    }
+                    @if (permite('ELIMINAR_TICKET')) {
+                      <button class="button small danger" [disabled]="ocupado() || !t.puedeEliminar" (click)="confirmarEliminarTicket(t)">Eliminar</button>
+                    }
+                  </div></td>
+                </tr>
+              } @empty { <tr><td colspan="7" class="vacio">No hay tickets con estos filtros.</td></tr> }</tbody>
+            </table>
+          </div>
+        }
+      }
+      @if (r.vista === 'informes' || r.vista === 'tickets') {
+        <div class="pie-tabla"><span>{{ r.datos.totalElementos }} resultados</span>
+          <div class="acciones">
+            <button class="button small" [disabled]="pagina() === 0" (click)="cambiarPagina(-1)">Anterior</button>
+            <span>Página {{ r.datos.totalPaginas ? pagina() + 1 : 0 }} de {{ r.datos.totalPaginas }}</span>
+            <button class="button small" [disabled]="r.datos.ultima" (click)="cambiarPagina(1)">Siguiente</button>
+          </div>
+        </div>
+      }
+    } @else if (error()) { <button class="button" (click)="cargar()">Reintentar</button> }
+  }
+</section>
+
+@if (confirmacion(); as c) {
+  <div class="modal-backdrop" (click)="confirmacion.set(null)">
+    <section class="modal confirmacion" role="dialog" aria-modal="true" aria-labelledby="confirmar-limpieza"
+      appDialog (dialogEscape)="confirmacion.set(null)" (click)="$event.stopPropagation()">
+      <h3 id="confirmar-limpieza">{{ c.titulo }}</h3><p>{{ c.texto }}</p>
+      <div class="acciones-final">
+        <button class="button" (click)="confirmacion.set(null)">Volver</button>
+        <button class="button danger" (click)="c.ejecutar()">Confirmar</button>
+      </div>
+    </section>
+  </div>
+}

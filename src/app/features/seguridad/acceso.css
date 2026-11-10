@@ -1,0 +1,162 @@
+:host {
+  --u: clamp(.68px, .048828125vw, 1px);
+  --indigo: #211584;
+  --inset: calc(54 * var(--u));
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: clamp(.85rem, 2.5vw, 2.5rem);
+  background: #110954 url("/images/fondo-login-bolognesi.png") center / cover no-repeat;
+}
+
+.marco-acceso {
+  display: grid;
+  grid-template-columns: minmax(0, 450fr) minmax(0, 573fr);
+  align-items: center;
+  width: min(100%, calc(1066 * var(--u)));
+  min-height: calc(746 * var(--u));
+  padding: calc(21 * var(--u));
+  background: #dfdeecef;
+  border: 1px solid #ffffff54;
+  border-radius: calc(11 * var(--u));
+}
+
+.marca { display: grid; place-items: center; }
+.marca img {
+  width: min(92%, calc(390 * var(--u)));
+  height: auto;
+  transform: translateX(calc(-24 * var(--u)));
+}
+
+.tarjeta-acceso {
+  align-self: stretch;
+  min-width: 0;
+  background: #fefefe;
+  border: 1px solid #e6e5ee;
+  border-radius: calc(11 * var(--u));
+}
+
+.rotulo {
+  margin: 0 calc(10 * var(--u));
+  padding: calc(22 * var(--u)) .5rem calc(3 * var(--u));
+  border-bottom: calc(6 * var(--u)) solid #746000;
+  color: #bd8b00;
+  font-size: max(15px, calc(22 * var(--u)));
+  font-weight: 700;
+  letter-spacing: .12em;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.contenido {
+  display: grid;
+  gap: calc(24 * var(--u));
+  padding: calc(44 * var(--u)) var(--inset) calc(42 * var(--u));
+}
+
+h1 {
+  color: #1e146c;
+  font-size: max(17px, calc(22 * var(--u)));
+  line-height: 1.2;
+}
+
+.contenido header { margin-bottom: calc(10 * var(--u)); }
+header p { margin-top: calc(7 * var(--u)); color: #565361; font-size: max(13px, calc(16 * var(--u))); }
+
+.campo { display: grid; gap: calc(7 * var(--u)); }
+label { font-size: max(12px, calc(13.5 * var(--u))); font-weight: 650; color: #53505e; }
+.campo label, .opciones label { display: flex; align-items: center; gap: .4rem; }
+.campo label app-icon, .conexion app-icon { width: .85rem; height: .85rem; }
+
+.campo input {
+  width: 100%;
+  min-height: max(38px, calc(52 * var(--u)));
+  padding: .4rem calc(17 * var(--u));
+  border: 1px solid #ccc9db;
+  border-radius: calc(4 * var(--u));
+  background: #f6f7f8;
+  color: var(--ink);
+}
+
+.campo input::placeholder { color: #8d8c9b; }
+.campo-clave { position: relative; }
+.campo-clave input { padding-right: 2.8rem; }
+.visibilidad {
+  position: absolute;
+  inset: .25rem .3rem .25rem auto;
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  border: 0;
+  border-radius: .3rem;
+  background: transparent;
+  color: #565361;
+}
+
+.opciones { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .55rem; }
+.opciones input { margin: 0; accent-color: var(--azul); }
+.enlace {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #20146f;
+  font-size: max(12px, calc(13.5 * var(--u)));
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: .16rem;
+}
+
+.primaria {
+  min-height: max(40px, calc(51 * var(--u)));
+  border-color: var(--indigo);
+  border-radius: calc(11 * var(--u));
+  background: var(--indigo);
+  color: white;
+  box-shadow: 0 .35rem .8rem #1f194025;
+  font-size: max(16px, calc(22 * var(--u)));
+  font-weight: 650;
+}
+.secundaria { white-space: normal; }
+
+.aviso, .error-acceso, .requisitos { padding: .7rem .85rem; border-radius: .4rem; font-size: .88rem; }
+.aviso { background: #fff5d9; border: 1px solid #e6ca76; color: #584200; }
+.error-acceso { background: #fff0ee; border: 1px solid #e6b0aa; color: #8b2b23; }
+.requisitos { margin: 0; list-style: none; background: #f5f4f9; color: #565361; }
+.requisitos .cumple { color: #216544; }
+
+.pie-acceso {
+  display: grid;
+  justify-items: center;
+  gap: calc(31 * var(--u));
+  margin: 0 var(--inset);
+  padding: calc(24 * var(--u)) 0 calc(52 * var(--u));
+  border-top: 1px solid #e3e1eb;
+  color: #66636c;
+  font-size: max(12px, calc(15 * var(--u)));
+  text-align: center;
+}
+
+.conexion {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  color: #237441;
+  font-size: max(10px, calc(11 * var(--u)));
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.soporte { color: #8b6608; font-size: inherit; font-weight: 500; }
+.modo-cambio .tarjeta-acceso { align-self: center; }
+.modo-cambio .contenido { gap: .65rem; padding-block: 1rem 1.4rem; }
+.modo-cambio .primaria { font-size: max(13px, calc(15 * var(--u))); }
+
+@media (max-width: 720px) {
+  :host { --inset: clamp(1rem, 6vw, 2rem); }
+  .marco-acceso { grid-template-columns: 1fr; min-height: auto; max-width: 29rem; }
+  .marca { padding: .5rem 1rem 1rem; }
+  .marca img { width: min(100%, 10rem); transform: none; }
+  .contenido { padding-block: 1.35rem; }
+  .pie-acceso { gap: .85rem; padding-bottom: 1.15rem; }
+}

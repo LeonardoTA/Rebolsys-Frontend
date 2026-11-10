@@ -1,0 +1,71 @@
+<div class="modal-backdrop" (click)="!guardando()&&cerrar.emit()">
+  <section
+    class="modal"
+    appDialog
+    (dialogEscape)="!guardando()&&cerrar.emit()"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="categoria-titulo"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="modal-header">
+      <h2 id="categoria-titulo">Crear categorías</h2>
+      <button
+        class="icon-button"
+        aria-label="Cerrar categorías"
+        [disabled]="guardando()"
+        (click)="cerrar.emit()"
+      >
+        <app-icon name="close" />
+      </button>
+    </header>
+    <p class="subtitle">
+      Organiza los productos del hospedaje. Puedes agregar varias categorías
+      desde aquí.
+    </p>
+    <form (ngSubmit)="guardar()">
+      <label class="field"
+        >Nombre de la categoría<input
+          name="categoria"
+          maxlength="30"
+          [(ngModel)]="nombre"
+          [disabled]="guardando()||cargando()"
+          placeholder="Ej. Bebidas, snacks, higiene"
+          required
+      /></label>
+      @if(error()){
+      <p class="error-box" role="alert">{{error()}}</p>
+      }@if(aviso()){
+      <p class="inline-note" role="status">{{aviso()}}</p>
+      }
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="button"
+          [disabled]="guardando()"
+          (click)="cerrar.emit()"
+        >
+          Cerrar</button
+        ><button
+          type="submit"
+          class="button primary"
+          [disabled]="guardando()||cargando()||!nombre.trim()"
+        >
+          {{guardando()?'Guardando…':'Agregar categoría'}}
+        </button>
+      </div>
+    </form>
+    <h3>Categorías registradas</h3>
+    @if(cargando()){
+    <p class="muted">Consultando categorías…</p>
+    }@else{
+    <ul class="category-list">
+      @for(c of categorias();track c.idCategoria){
+      <li>{{c.nombreCategoria}}</li>
+      }@empty{
+      <li>Aún no hay categorías.</li>
+      }
+    </ul>
+    }
+  </section>
+</div>

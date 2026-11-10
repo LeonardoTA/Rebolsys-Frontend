@@ -1,0 +1,220 @@
+<div class="page-heading"><div><h2>Empleados, usuarios y accesos</h2><p class="muted">Administra al personal, sus cuentas y los permisos de cada rol.</p></div></div>
+@if (error() && !modo()) { <p class="error-box" role="alert">{{ error() }}</p> }
+@if (aviso()) { <p class="exito" role="status">{{ aviso() }}</p> }
+@if (temporal(); as t) {
+  <section class="panel editor" aria-label="Credencial temporal">
+    <h2>Contraseña temporal</h2>
+    <code>{{ t.contrasenaTemporal }}</code>
+    <p>Vence el {{ t.vence.slice(0, 16).replace('T', ' ') }} en hora de Lima. Entrégala al empleado por un canal privado.</p>
+    <div><button class="button" type="button" (click)="temporal.set(null)">Ocultar contraseña</button></div>
+  </section>
+}
+@if (sesion.permite('EMPLEADOS:CREAR', 'EMPLEADOS:VER')) {
+  <section class="panel" aria-labelledby="titulo-empleados">
+    <header class="tabla-cabecera">
+      <div><h2 id="titulo-empleados">Empleados</h2><p class="muted">Personal y datos de contacto</p></div>
+      @if (sesion.permite('EMPLEADOS:CREAR')) {
+        <button class="button primary" type="button" (click)="abrirEmpleado()" [disabled]="ocupado()">Registrar empleado</button>
+      }
+    </header>
+    @if (sesion.permite('EMPLEADOS:VER')) {
+      <div class="table-scroll" tabindex="0" role="region" aria-labelledby="titulo-empleados">
+        <table aria-labelledby="titulo-empleados">
+          <thead><tr><th scope="col">Empleado</th><th scope="col">Documento</th><th scope="col">Contacto</th><th scope="col">Contratación</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead>
+          <tbody>@for (e of empleados(); track e.idEmpleado) {
+            <tr>
+              <td><strong>{{ e.nombres }} {{ e.apellidos }}</strong><small>{{ e.tieneUsuario ? 'Con usuario' : 'Sin usuario' }}</small></td>
+              <td>{{ e.numeroDocumento }}<small>{{ documentosPorId().get(e.idTipoDocumento) }}</small></td>
+              <td class="contacto">{{ e.correo || '—' }} @if (e.telefono) { <small>{{ e.telefono }}</small> }</td>
+              <td class="fecha">{{ e.fechaContratacion }}</td>
+              <td><span class="estado" [class.activo]="!e.fechaCese">{{ e.fechaCese ? 'Cesado' : 'Activo' }}</span>
+                @if (e.fechaCese) { <small>{{ e.fechaCese }}</small> }
+              </td>
+              <td><div class="opciones">
+                @if (sesion.actual()?.gerente) {
+                  <button class="button small" type="button" [disabled]="ocupado()" (click)="abrirEmpleado(e)">Editar</button>
+                  @if (!e.tieneUsuario && !e.fechaCese) {
+                    <button class="button small" type="button" [disabled]="ocupado()" (click)="nuevoUsuario(e)" [attr.aria-label]="'Crear usuario para ' + e.nombres">Crear usuario</button>
+                  }
+                  @if (!e.protegido) {
+                    <button class="button small" type="button" [class.danger]="!e.fechaCese" [disabled]="ocupado()" (click)="cambiarEstadoEmpleado(e)">{{ e.fechaCese ? 'Reactivar' : 'Dar de baja' }}</button>
+                  }
+                } @else { <span class="muted">Solo lectura</span> }
+              </div></td>
+            </tr>
+          } @empty { <tr><td colspan="6" class="tabla-vacia">Sin empleados registrados.</td></tr> }</tbody>
+        </table>
+      </div>
+    }
+  </section>
+}
+@if (sesion.permite('USUARIOS:VER')) {
+  <section class="panel" aria-labelledby="titulo-usuarios">
+    <header class="tabla-cabecera">
+      <div><h2 id="titulo-usuarios">Usuarios</h2><p class="muted">Cuentas, roles y acceso al sistema</p></div>
+      @if (sesion.actual()?.gerente) {
+        <button class="button primary" type="button" (click)="nuevoUsuario()" [disabled]="ocupado() || disponibles().length === 0">Crear usuario</button>
+      }
+    </header>
+    @if (sesion.actual()?.gerente && disponibles().length === 0) {
+      <p class="nota-tabla muted">Para crear otro usuario, registra primero un empleado activo sin cuenta.</p>
+    }
+    <div class="table-scroll" tabindex="0" role="region" aria-labelledby="titulo-usuarios">
+      <table aria-labelledby="titulo-usuarios">
+        <thead><tr><th scope="col">Usuario</th><th scope="col">Empleado</th><th scope="col">Estado</th><th scope="col">Roles</th><th scope="col">Acciones</th></tr></thead>
+        <tbody>@for (u of usuarios(); track u.idUsuario) {
+          @let vinculado = empleadosPorId().get(u.idEmpleado);
+          <tr>
+            <td class="contacto"><strong>{{ u.usuario }}</strong></td>
+            <td>{{ vinculado ? vinculado.nombres + ' ' + vinculado.apellidos : '—' }}</td>
+            <td><span class="estado" [class.activo]="u.estado === 'ACTIVO'">{{ u.estado === 'ACTIVO' ? 'Activo' : u.estado === 'BLOQUEADO' ? 'Bloqueado' : 'Inactivo' }}</span></td>
+            <td>{{ u.nombresRoles.join(', ') || 'Sin roles reutilizables' }}</td>
+            <td><div class="opciones">
+              @if (sesion.actual()?.gerente && !u.gerente) {
+                <button class="button small" type="button" [disabled]="ocupado()" (click)="editar('editarUsuario', u)">Editar usuario</button>
+                <button class="button small" type="button" (click)="renovar(u)" [disabled]="ocupado() || u.estado !== 'ACTIVO'">Nueva contraseña temporal</button>
+                <button class="button small" type="button" [class.danger]="u.estado === 'ACTIVO'" (click)="cambiarEstado(u)" [disabled]="ocupado() || (u.estado !== 'ACTIVO' && !!vinculado?.fechaCese)"
+                  [attr.title]="vinculado?.fechaCese ? 'Reactiva primero al empleado' : null">{{ u.estado === 'ACTIVO' ? 'Desactivar' : 'Reactivar' }}</button>
+              } @else { <span class="muted">{{ u.gerente ? 'Cuenta protegida' : 'Solo lectura' }}</span> }
+            </div></td>
+          </tr>
+        } @empty { <tr><td colspan="5" class="tabla-vacia">Sin usuarios registrados.</td></tr> }</tbody>
+      </table>
+    </div>
+  </section>
+}
+@if (sesion.permite('ROLES:VER')) {
+  <section class="panel" aria-labelledby="titulo-roles">
+    <header class="tabla-cabecera">
+      <div><h2 id="titulo-roles">Roles reutilizables</h2><p class="muted">Grupos de permisos para asignar a los usuarios</p></div>
+      @if (sesion.actual()?.gerente) {
+        <button class="button primary" type="button" (click)="editar('rol')" [disabled]="ocupado()">Crear rol</button>
+      }
+    </header>
+    <div class="table-scroll" tabindex="0" role="region" aria-labelledby="titulo-roles">
+      <table aria-labelledby="titulo-roles">
+        <thead><tr><th scope="col">Rol</th><th scope="col">Permisos</th><th scope="col">Usuarios asignados</th><th scope="col">Acciones</th></tr></thead>
+        <tbody>@for (r of roles(); track r.idRol) {
+          <tr>
+            <td><strong>{{ r.nombre }}</strong></td>
+            <td>{{ r.protegido ? 'Acceso de gerencia' : r.permisos.length }}</td>
+            <td>{{ r.usuariosAsignados }}</td>
+            <td><div class="opciones">
+              @if (sesion.actual()?.gerente && !r.protegido) {
+                <button class="button small" type="button" [disabled]="ocupado()" (click)="editar('rol', undefined, r)">Editar</button>
+                <button class="button small danger" type="button" (click)="eliminarRol(r)" [disabled]="ocupado() || r.usuariosAsignados > 0" [attr.title]="r.usuariosAsignados > 0 ? 'Retira las asignaciones primero' : null">Eliminar</button>
+              } @else { <span class="muted">{{ r.protegido ? 'Rol protegido' : 'Solo lectura' }}</span> }
+            </div></td>
+          </tr>
+        } @empty { <tr><td colspan="4" class="tabla-vacia">Sin roles registrados.</td></tr> }</tbody>
+      </table>
+    </div>
+  </section>
+}
+@if (modo(); as actual) {
+  <div class="modal-backdrop">
+    <section appDialog class="modal wide-modal modal-editor" [class.modal-permisos]="actual !== 'empleado'"
+      role="dialog" aria-modal="true" aria-labelledby="titulo-editor-accesos" (dialogEscape)="cerrarEditor()">
+      <header class="editor-cabecera">
+        <h2 id="titulo-editor-accesos">
+          {{ actual === 'empleado' ? (idEdicion === null ? 'Nuevo empleado' : 'Editar empleado')
+            : actual === 'rol' ? (idEdicion === null ? 'Nuevo rol' : 'Editar rol') : actual === 'usuario' ? 'Crear usuario' : 'Editar usuario' }}
+        </h2>
+        <button class="icon-button" type="button" aria-label="Cerrar formulario" (click)="cerrarEditor()" [disabled]="ocupado()">
+          <app-icon name="close" />
+        </button>
+      </header>
+      @if (error()) { <p class="error-box" role="alert">{{ error() }}</p> }
+      @if (actual === 'empleado') {
+        <form class="editor-form" #formEmpleado="ngForm" (ngSubmit)="guardarEmpleado(formEmpleado)">
+          <div class="cuerpo-editor">
+            @if (idEdicion !== null) {
+              <p class="muted">Documento {{ documentosPorId().get(empleado.idTipoDocumento!) }} {{ empleado.numeroDocumento }}</p>
+            }
+            <div class="campos">
+              @if (idEdicion === null) {
+                <label>Tipo de documento *
+                  <select name="tipo" [(ngModel)]="empleado.idTipoDocumento" required>
+                    <option [ngValue]="null">Seleccionar</option>
+                    @for (tipo of tiposDocumento(); track tipo.id) { <option [ngValue]="tipo.id">{{ tipo.nombre }}</option> }
+                  </select>
+                </label>
+                <label>Número de documento * <input name="numero" [(ngModel)]="empleado.numeroDocumento" required maxlength="50" /></label>
+              }
+              <label>Nombres * <input name="nombres" [(ngModel)]="empleado.nombres" required maxlength="100" /></label>
+              <label>Apellidos * <input name="apellidos" [(ngModel)]="empleado.apellidos" required maxlength="100" /></label>
+              <label>Correo {{ idEdicion === null ? '*' : '' }} <input name="correo" type="email" [(ngModel)]="empleado.correo" [required]="idEdicion === null" email maxlength="100" /></label>
+              <label>Teléfono <input name="telefono" type="tel" [(ngModel)]="empleado.telefono" maxlength="15" /></label>
+              <label>Nacimiento <input name="nacimiento" type="date" [(ngModel)]="empleado.fechaNacimiento" /></label>
+              <label>Contratación * <input name="contratacion" type="date" [(ngModel)]="empleado.fechaContratacion" required /></label>
+            </div>
+          </div>
+          <div class="opciones editor-acciones">
+            <button class="button" type="button" (click)="cerrarEditor()" [disabled]="ocupado()">Cancelar</button>
+            <button class="button primary" [disabled]="ocupado()">{{ ocupado() ? 'Guardando…' : 'Guardar empleado' }}</button>
+          </div>
+        </form>
+      } @else {
+        <form class="editor-form" #formAccesos="ngForm" (ngSubmit)="guardar()">
+          <div class="cuerpo-editor">
+            <div class="campos">
+              @if (actual === 'usuario') {
+                <label>Empleado
+                  <select name="empleado" [(ngModel)]="idEmpleado" required>
+                    <option [ngValue]="null">Seleccionar</option>
+                    @for (e of disponibles(); track e.idEmpleado) { <option [ngValue]="e.idEmpleado">{{ e.nombres }} {{ e.apellidos }}</option> }
+                  </select>
+                </label>
+              }
+              <label>{{ actual === 'rol' ? 'Nombre del rol' : 'Usuario o correo de acceso' }}
+                <input name="nombre" [(ngModel)]="nombre" required [minlength]="actual === 'rol' ? 2 : 3"
+                  [pattern]="actual === 'rol' ? '[a-zA-Z0-9_-]{2,30}' : '[a-zA-Z0-9][a-zA-Z0-9._@+\\-]{2,49}'"
+                  [maxlength]="actual === 'rol' ? 30 : 50" />
+              </label>
+            </div>
+            @if (actual !== 'rol') {
+              <fieldset>
+                <legend>Roles</legend>
+                @for (rol of roles(); track rol.idRol) {
+                  @if (!rol.protegido) {
+                    <label class="check"><input type="checkbox" [checked]="seleccionRoles().includes(rol.idRol)"
+                      (change)="elegirRol(rol.idRol)" />{{ rol.nombre }}</label>
+                  }
+                }
+              </fieldset>
+            }
+            <h3>{{ actual === 'rol' ? 'Funciones del rol' : 'Permisos individuales' }}</h3>
+            <div class="modulos">
+              @for (grupo of modulos(); track grupo.modulo) {
+                <fieldset>
+                  <legend>{{ grupo.modulo }}</legend>
+                  @for (f of grupo.funciones; track f.codigo) {
+                    <label class="check"><input type="checkbox" [checked]="seleccionPermisos().includes(f.codigo)"
+                      (change)="elegirPermiso(f.codigo)" />{{ f.accion.split('_').join(' ') }}</label>
+                  }
+                </fieldset>
+              }
+            </div>
+          </div>
+          <div class="opciones editor-acciones">
+            <button class="button" type="button" (click)="cerrarEditor()" [disabled]="ocupado()">Cancelar</button>
+            <button class="button primary" [disabled]="formAccesos.invalid || ocupado()">{{ ocupado() ? 'Guardando…' : 'Guardar' }}</button>
+          </div>
+        </form>
+      }
+    </section>
+  </div>
+}
+@if (confirmacion(); as c) {
+  <div class="modal-backdrop" (click)="confirmacion.set(null)">
+    <section appDialog class="modal editor" role="alertdialog" aria-modal="true" aria-labelledby="titulo-confirmacion"
+      (dialogEscape)="confirmacion.set(null)" (click)="$event.stopPropagation()">
+      <h2 id="titulo-confirmacion">{{ c.titulo }}</h2>
+      <p>{{ c.texto }}</p>
+      <div class="opciones">
+        <button class="button" type="button" (click)="confirmacion.set(null)">Cancelar</button>
+        <button class="button danger" type="button" (click)="confirmarAccion()">Confirmar</button>
+      </div>
+    </section>
+  </div>
+}

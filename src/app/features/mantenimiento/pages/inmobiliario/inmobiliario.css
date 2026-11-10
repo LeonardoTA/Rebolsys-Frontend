@@ -1,0 +1,263 @@
+.panel-toolbar {
+  flex-wrap: wrap;
+}
+
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 240px;
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.search-field app-icon {
+  flex-shrink: 0;
+}
+
+.search-field input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  padding: 8px 0;
+  background: transparent;
+}
+
+.panel-toolbar > select {
+  width: auto;
+  max-width: 100%;
+}
+
+.room-selector-container {
+  display: flex;
+  align-items: stretch;
+  gap: 20px;
+  margin-bottom: 22px;
+}
+
+.room-select-field {
+  flex: 0 0 380px;
+  background: white;
+  padding: 16px 20px;
+  border-radius: 12px;
+}
+
+.room-summary-card {
+  flex: 1;
+  background: white;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 80px;
+}
+
+.room-summary-text {
+  flex: 1;
+}
+
+.room-summary-text strong {
+  display: block;
+  font-size: 18px;
+  color: var(--ink);
+}
+
+.room-summary-text p {
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.room-summary-badges {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.item-number {
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.acciones-fila {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.label-with-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.badge-bueno {
+  background: #e9f6e8;
+  color: #17920c;
+  border: 1px solid #17920c40;
+}
+
+.badge-danado {
+  background: #fff7cc;
+  color: #826200;
+  border: 1px solid #e2cb65;
+}
+
+.badge-faltante {
+  background: #fff0ef;
+  color: #cb1717;
+  border: 1px solid #cb171740;
+}
+
+.badge-reparacion {
+  background: #efedfb;
+  color: #1e1586;
+  border: 1px solid #1e158640;
+}
+
+.badge-default {
+  background: #eee;
+  color: #555;
+  border: 1px solid #ccc;
+}
+
+.badge-asignacion {
+  background: #eaf6ff;
+  color: #155d86;
+  border: 1px solid #1c8dd940;
+}
+
+.badge-traslado {
+  background: #fff7cc;
+  color: #826200;
+  border: 1px solid #e2cb65;
+}
+
+.badge-retiro {
+  background: #fff0ef;
+  color: #cb1717;
+  border: 1px solid #cb171740;
+}
+
+.badge-conservacion {
+  background: #efedfb;
+  color: #1e1586;
+  border: 1px solid #1e158640;
+}
+
+.exito-parcial {
+  background: #e9faed;
+  border: 1px solid #7bb68a;
+  color: #225d2f;
+  padding: 12px 14px;
+  border-radius: 8px;
+  margin: 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.alert-warning {
+  background: #fff7cc;
+  border: 1px solid #ecd56d;
+  color: #755400;
+  padding: 12px 14px;
+  border-radius: 8px;
+  margin: 14px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.alert-info {
+  background: #efedfb;
+  border: 1px solid #c5c0ea;
+  color: #1e1586;
+  padding: 12px 14px;
+  border-radius: 8px;
+  margin: 14px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.detalle-info-grid {
+  margin-bottom: 20px;
+}
+
+.historial-table-container {
+  max-height: 280px;
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.empty-historial {
+  text-align: center;
+  padding: 24px;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .room-selector-container {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .room-select-field {
+    flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-heading {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .room-summary-card {
+    flex-wrap: wrap;
+  }
+
+  .room-summary-text {
+    flex: 1 1 190px;
+  }
+
+  .panel-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-field {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  .panel-toolbar > select {
+    width: 100%;
+  }
+}

@@ -1,0 +1,174 @@
+<div class="page-heading">
+  <div><h2>Caja del turno</h2><p class="muted">Registra ingresos y gastos, consulta los movimientos y realiza el arqueo.</p></div>
+  <button class="button" type="button" [disabled]="cargando() || ocupado()" (click)="cargar()">Actualizar</button>
+</div>
+
+@if (turno(); as t) {
+  <section class="panel caja-resumen" aria-labelledby="caja-turno">
+    <div class="panel-toolbar">
+      <div>
+        <h3 id="caja-turno">Turno #{{ t.idTurno }} <span class="estado-turno" [class.abierto]="t.abierto">{{ t.abierto ? 'Abierto' : 'Cerrado' }}</span></h3>
+        <p class="muted">Apertura {{ fecha(t.fechaApertura) }} @if (t.fechaCierre) { · Cierre {{ fecha(t.fechaCierre) }} }</p>
+      </div>
+      @if (t.abierto) {
+        <div class="acciones">
+          @if (puedeIngresar()) {
+            <button class="button" type="button" [disabled]="cargando() || ocupado()" (click)="abrirMovimiento(1)">Registrar ingreso</button>
+          }
+          @if (puedeGastar()) {
+            <button class="button" type="button" [disabled]="cargando() || ocupado()" (click)="abrirMovimiento(-1)">Registrar gasto</button>
+          }
+          @if (puedeCerrar()) {
+            <button class="button primary" type="button" [disabled]="cargando() || ocupado() || !t.revision" (click)="abrirCierre()">Cerrar caja</button>
+          }
+        </div>
+      }
+    </div>
+    <div class="indicadores">
+      <div><small>Fondo de apertura</small><strong>{{ t.montoBase | currency:'PEN':'S/ ' }}</strong></div>
+      <div><small>Ingresos manuales en efectivo</small><strong>{{ t.ingresosManuales | currency:'PEN':'S/ ' }}</strong></div>
+      <div><small>Gastos manuales en efectivo</small><strong>{{ t.gastosManuales | currency:'PEN':'S/ ' }}</strong></div>
+    </div>
+    @if (t.bloqueoCierre) { <p class="nota-caja" role="status">{{ t.bloqueoCierre }}</p> }
+  </section>
+
+  <section class="panel" aria-labelledby="caja-arqueo">
+    <div class="panel-toolbar"><h3 id="caja-arqueo">{{ t.abierto ? 'Importes esperados por forma de pago' : 'Arqueo del turno cerrado' }}</h3></div>
+    <div class="table-scroll" tabindex="0" role="region" aria-labelledby="caja-arqueo">
+      <table>
+        <thead><tr><th>Forma de pago</th><th>Esperado</th>@if (!t.abierto) { <th>Declarado</th><th>Diferencia</th> }</tr></thead>
+        <tbody>
+          @for (a of t.arqueos; track a.idFormaPago) {
+            <tr><td>{{ a.formaPago }}</td><td>{{ a.montoCalculado | currency:'PEN':'S/ ' }}</td>
+              @if (!t.abierto) {
+                <td>{{ a.montoDeclarado | currency:'PEN':'S/ ' }}</td>
+                <td>{{ a.diferencia | currency:'PEN':'S/ ' }}</td>
+              }
+            </tr>
+          } @empty { <tr><td [attr.colspan]="t.abierto ? 2 : 4" class="muted">No hay importes de arqueo disponibles.</td></tr> }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="caja-movimientos">
+    <div class="panel-toolbar"><h3 id="caja-movimientos">Movimientos del turno</h3></div>
+    <div class="table-scroll" tabindex="0" role="region" aria-labelledby="caja-movimientos">
+      <table>
+        <thead><tr><th>Fecha y hora</th><th>Concepto</th><th>Tipo</th><th>Importe</th><th>Evidencia</th></tr></thead>
+        <tbody>
+          @for (m of historial()?.contenido ?? []; track m.idFlujo) {
+            <tr><td>{{ fecha(m.fechaHora) }}</td><td>{{ m.concepto }}</td><td>{{ m.tipo }}</td>
+              <td [class.salida]="m.signo < 0">{{ m.signo === 1 ? '+' : '−' }} {{ m.monto | currency:'PEN':'S/ ' }}</td>
+              <td>@if (m.evidencia) { <a class="text-button" [href]="m.evidencia" download>Descargar</a> } @else { — }</td>
+            </tr>
+          } @empty { <tr><td colspan="5" class="muted">{{ cargando() ? 'Cargando movimientos…' : 'Aún no hay movimientos en este turno.' }}</td></tr> }
+        </tbody>
+      </table>
+    </div>
+    @if (historial(); as h) {
+      <div class="panel-bottom"><span>{{ h.totalElementos }} movimientos</span><div class="acciones">
+        <button class="button small" type="button" [disabled]="cargando() || h.pagina === 0" (click)="cargar(h.pagina - 1, t.idTurno)">Anterior</button>
+        <button class="button small" type="button" [disabled]="cargando() || h.ultima" (click)="cargar(h.pagina + 1, t.idTurno)">Siguiente</button>
+      </div></div>
+    }
+  </section>
+} @else if (cargando()) {
+  <p class="loading-state" role="status">Cargando caja…</p>
+} @else if (errorCarga()) {
+  <p class="panel nota-caja">No se pudo cargar la caja. Usa Actualizar para volver a consultar.</p>
+} @else {
+  <p class="panel nota-caja">Tu sesión no tiene un turno de caja disponible. Inicia sesión como gerente o recepcionista para abrir tu turno.</p>
+}
+
+@if (editorMovimiento(); as signo) {
+  <div class="modal-backdrop">
+    <section appDialog (dialogEscape)="cerrarDialogo()" class="modal wide-modal" role="dialog" aria-modal="true" aria-labelledby="caja-editor">
+      <h2 id="caja-editor">{{ signo === 1 ? 'Registrar ingreso' : 'Registrar gasto' }}</h2>
+      <p class="muted">Turno #{{ turno()?.idTurno }} · Efectivo</p>
+      <form #formMovimiento="ngForm" (ngSubmit)="guardarMovimiento()">
+        <fieldset class="form-grid caja-campos" [disabled]="ocupado() || pendienteMovimiento()">
+          <label class="field">Categoría <span class="required">*</span>
+            <select name="tipo" [(ngModel)]="tipoId" required>
+              <option [ngValue]="null">Selecciona una categoría</option>
+              @for (tipo of tiposMovimiento(); track tipo.idTipoMovimiento) {
+                <option [ngValue]="tipo.idTipoMovimiento">{{ tipo.nombre }}</option>
+              }
+            </select>
+          </label>
+          <label class="field">Monto (S/) <span class="required">*</span>
+            <input name="monto" type="number" min="0.01" max="9999999999.99" step="0.01" [(ngModel)]="monto" required #importe="ngModel" />
+            @if (importe.touched && (monto === 0 || !importeValido(monto, 9999999999.99))) { <small class="salida">Ingresa un monto mayor a cero con hasta dos decimales.</small> }
+          </label>
+          <label class="field span-2">Concepto <span class="required">*</span>
+            <textarea name="concepto" rows="3" [(ngModel)]="concepto" maxlength="1000" required></textarea>
+          </label>
+          <div class="field span-2">
+            <label for="caja-adjunto">Adjuntar comprobante <span class="optional">Opcional</span></label>
+            <input #adjunto id="caja-adjunto" type="file" accept="image/jpeg,image/png" (change)="adjuntar($event)" />
+            <small class="muted">Foto JPG o PNG, hasta 5 MB.</small>
+            @if (archivo || archivoInvalido) { <button class="button small" type="button" (click)="quitarAdjunto(adjunto)">Quitar adjunto</button> }
+          </div>
+        </fieldset>
+        @if (!tiposMovimiento().length) { <p class="error-box" role="alert">No hay categorías configuradas para este movimiento.</p> }
+        @if (pendienteMovimiento()) { <p class="nota-caja">Reintenta con los mismos datos para recuperar el resultado.</p> }
+        <div class="modal-actions">
+          <button class="button" type="button" [disabled]="ocupado() || pendienteMovimiento()" (click)="cerrarDialogo()">Cancelar</button>
+          <button class="button primary" type="submit" [disabled]="ocupado() || archivoInvalido || !tiposMovimiento().length || formMovimiento.invalid">
+            {{ ocupado() ? 'Procesando…' : pendienteMovimiento() ? 'Reintentar registro' : 'Guardar movimiento' }}
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+}
+
+@if (cierre(); as paso) {
+  @if (turno(); as t) {
+    <div class="modal-backdrop">
+      <section appDialog (dialogEscape)="cerrarDialogo()" class="modal wide-modal modal-arqueo" role="dialog" aria-modal="true" aria-labelledby="titulo-cierre">
+        <h2 id="titulo-cierre">{{ paso === 'conteo' ? 'Arqueo de caja' : 'Confirmar cierre' }}</h2>
+        <p class="muted">Turno #{{ t.idTurno }} · Apertura {{ fecha(t.fechaApertura) }} · Fondo {{ t.montoBase | currency:'PEN':'S/ ' }}</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Forma de pago</th><th>Esperado</th><th>Declarado</th><th>Diferencia</th></tr></thead>
+            <tbody>@for (a of t.arqueos; track a.idFormaPago) {
+              @let valor = declaraciones()[a.idFormaPago];
+              @let dif = diferencia(a);
+              <tr><td>{{ a.formaPago }}</td><td>{{ a.montoCalculado | currency:'PEN':'S/ ' }}</td>
+                <td>@if (paso === 'conteo') {
+                  <input type="number" min="0" max="99999999.99" step="0.01" inputmode="decimal" [attr.aria-label]="'Monto declarado en ' + a.formaPago"
+                    [ngModel]="valor" (ngModelChange)="declarar(a.idFormaPago, $event)" [disabled]="ocupado()" required />
+                  @if (valor != null && !importeValido(valor, 99999999.99)) { <small class="salida">Ingresa un importe válido con hasta dos decimales.</small> }
+                } @else { {{ valor | currency:'PEN':'S/ ' }} }</td>
+                <td [class.salida]="dif !== null && dif < 0">
+                  @if (dif === null) { — } @else {
+                    {{ dif > 0 ? '+' : '' }}{{ dif | currency:'PEN':'S/ ' }}
+                    <small>{{ dif < 0 ? 'Faltante' : dif > 0 ? 'Sobrante' : 'Cuadra' }}</small>
+                  }
+                </td>
+              </tr>
+            }</tbody>
+          </table>
+        </div>
+        @if (paso === 'resumen') {
+          <p class="nota-caja">
+            @if (hayDiferencias()) { Hay faltantes o sobrantes en el conteo. Revisa las diferencias antes de confirmar. }
+            El cierre guarda el arqueo y finaliza el turno.
+          </p>
+        }
+        <div class="modal-actions">
+          <button class="button" type="button" [disabled]="ocupado()" (click)="cerrarDialogo()">Cancelar</button>
+          @if (paso === 'conteo') {
+            <button class="button primary" type="button" [disabled]="ocupado() || !declaracionesValidas()" (click)="cierre.set('resumen')">Revisar cierre</button>
+          } @else {
+            <button class="button" type="button" [disabled]="ocupado() || cierreIncierto()" (click)="cierre.set('conteo')">Corregir montos</button>
+            <button class="button primary" type="button" [disabled]="ocupado()" (click)="confirmarCierre()">
+              {{ ocupado() ? 'Procesando…' : cierreIncierto() ? 'Consultar estado' : 'Confirmar cierre' }}
+            </button>
+          }
+        </div>
+      </section>
+    </div>
+  }
+}

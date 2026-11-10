@@ -1,0 +1,47 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+.page-heading {
+  flex-wrap: wrap;
+}
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.panel-toolbar {
+  flex-wrap: wrap;
+}
+.buscar {
+  flex: 1 1 240px;
+}
+.panel-toolbar select {
+  width: auto;
+  max-width: 100%;
+}
+.field {
+  margin: 12px 0;
+}
+table {
+  min-width: 850px;
+  font-size: 14px;
+}
+td,
+th {
+  padding: 15px 12px;
+}
+td .acciones {
+  min-width: 220px;
+}
+.modal h2 {
+  font-size: 24px;
+}
+@media (max-width: 650px) {
+  .page-heading .acciones {
+    width: 100%;
+  }
+  .page-heading .button {
+    flex: 1;
+  }
+}
