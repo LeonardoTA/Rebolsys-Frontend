@@ -1,4 +1,8 @@
 import { Comprobante } from "../../reservas/models/comprobante.model";
+import {
+  CobroReserva,
+  DetalleReserva,
+} from "../../reservas/models/reserva-api.model";
 export interface VentaDetalle {
   idConsumo: number;
   idProducto: number;
@@ -10,6 +14,10 @@ export interface VentaDetalle {
   imagenRuta: string | null;
 }
 export interface Venta {
+  pagado?: number;
+  saldo?: number;
+  idUsuario?: number;
+  estadoVenta?: string;
   editable?: boolean;
   idReserva?: number | null;
   idVenta: number;
@@ -41,9 +49,10 @@ export interface VentaRequest {
   compradorNombre: string | null;
   detalles: { idProducto: number; cantidad: number; precioEsperado?: number }[];
   efectivoRecibido: number | null;
+  cobro?: CobroReserva;
 }
 export interface ReservaVenta {
-  idReserva?: number;
+  idReserva: number;
   idDetalleReserva: number;
   referencia: string;
   numero: string;
@@ -51,4 +60,7 @@ export interface ReservaVenta {
   clienteNombre: string;
   idCliente: number;
   huespedes: string[];
+  estadoDetalle: DetalleReserva["estadoDetalle"];
+  fechaIngreso: string;
+  fechaSalida: string;
 }

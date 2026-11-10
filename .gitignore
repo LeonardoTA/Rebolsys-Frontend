@@ -46,19 +46,16 @@ Thumbs.db
 # Configuración temporal de comprobación visual
 proxy.qa.json
 
-# Archivos locales y documentación de trabajo
+# Archivos locales, documentación y pruebas que no se publican
 /docs/
 /postman/
 /.angular/
 /.vscode/
+**/*.spec.ts
+/tsconfig.spec.json
 .env
 .env.*
 !.env.example
 *.log
 *.bak
 *.zip
-
-# Configuración privada y cachés de este repositorio independiente
-/.work/
-/.local/
-**/*local-private*

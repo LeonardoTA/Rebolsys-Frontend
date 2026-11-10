@@ -1,0 +1,407 @@
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">CONFIGURACIONES</p>
+    <h2>
+      {{modo()==='habitaciones'?'Habitaciones':'Mobiliario de habitaciones'}}
+    </h2>
+    <p class="muted">
+      {{modo()==='habitaciones'?'Tipos, precios y límites de
+      ocupación.':'Unidades físicas, ubicación y conservación.'}}
+    </p>
+  </div>
+  <div class="acciones">
+    @if (acceso.permite(modulo() + ':CREAR_TIPO')) {
+      <button class="button" (click)="abrirTipo()">Nuevo tipo</button>
+    }
+    @if (acceso.permite(modulo() + ':CREAR')) {
+    <button
+      class="button primary"
+      (click)="modo()==='habitaciones'?abrirHabitacion():abrirItem()"
+    >
+      <app-icon name="plus" />{{modo()==='habitaciones'?'Nueva
+      habitación':'Nuevo mueble'}}
+    </button>
+    }
+  </div>
+</div>
+<section class="panel">
+  <div class="panel-toolbar">
+    <label class="field buscar"
+      ><span class="sr-only">Buscar configuración</span
+      ><input
+        type="search"
+        [ngModel]="buscar()"
+        (ngModelChange)="buscar.set($event)"
+        placeholder="Buscar por número, nombre o tipo…"
+    /></label>
+    <select
+      aria-label="Filtrar estado"
+      [ngModel]="estado()"
+      (ngModelChange)="estado.set($event)"
+    >
+      <option value="">Todos los estados</option>
+      @for(e of
+      modo()==='habitaciones'?catalogos()?.estadosHabitacion:catalogos()?.estadosItem;track
+      e){
+      <option [value]="e">{{e}}</option>
+      }</select
+    ><button class="button" (click)="cargar()">Actualizar</button>
+  </div>
+  @if(cargando()){
+  <p class="loading-state">Cargando configuración…</p>
+  } @else if(error()){
+  <div class="error-state" role="alert">
+    <p>{{error()}}</p>
+    <button class="button" (click)="cargar()">Reintentar</button>
+  </div>
+  } @else if(modo()==='habitaciones'){
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Habitación</th>
+          <th>Tipo</th>
+          <th>Ocupación</th>
+          <th>Tarifa por noche</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for(h of habitacionesFiltradas();track h.idHabitacion){
+        <tr>
+          <td><strong>{{h.numeroCuarto}}</strong></td>
+          <td>{{h.nombreTipo}}</td>
+          <td>
+            {{h.capacidadPersonas}} personas<small
+              >{{h.plazasCama}} plazas · {{h.maxMenoresSinCama}} menores sin
+              cama</small
+            >
+          </td>
+          <td>
+            {{h.precioBase>0?(h.precioBase|currency:'PEN':'S/ '):'Tarifa
+            pendiente'}}<small
+              >{{h.precioPorNoche===null?'Precio del tipo':'Precio
+              propio'}}</small
+            >
+          </td>
+          <td>
+            <span [class]="'badge '+h.estadoHabitacion.toLowerCase()"
+              >{{h.estadoHabitacion}}</span
+            >
+          </td>
+          <td>
+            @if (acceso.permite('HABITACIONES:EDITAR')) {
+            <button class="button small" (click)="abrirHabitacion(h)">
+              <app-icon name="edit" />Editar
+            </button>
+            }
+          </td>
+        </tr>
+        } @empty{
+        <tr>
+          <td colspan="6" class="empty-state">
+            No hay habitaciones que coincidan.
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  }@else{
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Mueble</th>
+          <th>Tipo</th>
+          <th>Ubicación</th>
+          <th>Conservación</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for(i of itemsFiltrados();track i.idItem){
+        <tr>
+          <td>{{i.nombreItem}}</td>
+          <td>{{i.nombreTipo}}</td>
+          <td>{{i.numeroCuarto?'Habitación '+i.numeroCuarto:'Sin asignar'}}</td>
+          <td>{{i.estadoActualItem??'Sin registro'}}</td>
+          <td>{{i.estadoItem}}</td>
+          <td>
+            <div class="acciones">
+              @if (acceso.permite('MOBILIARIO:EDITAR')) {
+                <button class="button small" (click)="abrirItem(i)">Editar</button>
+              }
+              @if (acceso.permite('MOBILIARIO:ASIGNAR')) {
+              <button
+                class="button small"
+                [disabled]="i.estadoItem==='Inactivo'"
+                (click)="abrirAsignacion(i)"
+              >
+                {{i.idHabitacion?'Trasladar / retirar':'Asignar'}}</button
+              >}
+              @if(i.idHabitacion && acceso.permite('MOBILIARIO:CONSERVACION')){<button
+                class="button small"
+                (click)="abrirAsignacion(i,true)"
+              >
+                Conservación</button
+              >}
+              @if (acceso.permite('MOBILIARIO:ELIMINAR')) {
+              <button
+                class="button small danger"
+                [disabled]="i.estadoItem==='Inactivo'||!!i.idHabitacion"
+                (click)="baja(i)"
+              >
+                Desactivar
+              </button>
+              }
+            </div>
+          </td>
+        </tr>
+        } @empty{
+        <tr>
+          <td colspan="6" class="empty-state">
+            No hay mobiliario que coincida.
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  }
+</section>
+@if(editando();as modoEdicion){
+<div class="modal-backdrop" (click)="cerrar()">
+  <section
+    appDialog
+    (dialogEscape)="cerrar()"
+    class="modal wide-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="config-titulo"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="modal-header">
+      <h2 id="config-titulo">
+        {{modoEdicion==='habitacion'?(id?'Editar habitación':'Nueva
+        habitación'):modoEdicion==='item'?(id?'Editar mueble':'Nuevo
+        mueble'):modoEdicion==='asignacion'?'Ubicación del
+        mueble':modoEdicion==='conservacion'?'Conservación del
+        mueble':modoEdicion==='baja'?'Desactivar mueble':'Nuevo tipo'}}
+      </h2>
+      <button
+        class="icon-button"
+        aria-label="Cerrar configuración"
+        [disabled]="ocupado()"
+        (click)="cerrar()"
+      >
+        <app-icon name="close" />
+      </button>
+    </header>
+    <form (ngSubmit)="guardar()" #formulario="ngForm">
+      @if(modoEdicion==='habitacion'){
+      <div class="form-grid">
+        <label class="field"
+          >Número<input
+            name="numero"
+            [(ngModel)]="habitacion.numeroCuarto"
+            maxlength="10"
+            required
+        /></label>
+        <label class="field"
+          >Tipo<select
+            name="tipo"
+            [(ngModel)]="habitacion.idTipoHabitacion"
+            required
+          >
+            @for(t of catalogos()?.tiposHabitacion;track t.idTipoHabitacion){
+            <option [ngValue]="t.idTipoHabitacion">{{t.nombreTipo}}</option>
+            }
+          </select></label
+        >
+        <label class="field"
+          >Estado físico<select
+            name="estado"
+            [(ngModel)]="habitacion.estadoHabitacion"
+          >
+            @for(e of catalogos()?.estadosHabitacion;track e){
+            <option [value]="e">{{e}}</option>
+            }</select
+          ><small
+            >OCUPADO se determina con el check-in de una estancia.</small
+          ></label
+        >
+        <label class="field"
+          >Tarifa propia por noche<input
+            name="precio"
+            type="number"
+            min="0"
+            max="99999999.99"
+            step="0.01"
+            [(ngModel)]="habitacion.precioPorNoche"
+          /><small
+            >Incluye impuesto. Al crear sin tarifa se usa la del tipo. Al
+            editar, dejar vacío conserva la tarifa actual.</small
+          ></label
+        >
+        <label class="field"
+          >Máximo de personas<input
+            name="personas"
+            type="number"
+            min="1"
+            max="99"
+            step="1"
+            [(ngModel)]="habitacion.capacidadPersonas"
+            required
+        /></label>
+        <label class="field"
+          >Plazas de cama<input
+            name="camas"
+            type="number"
+            min="1"
+            max="99"
+            step="1"
+            [(ngModel)]="habitacion.plazasCama"
+            required
+        /></label>
+        <label class="field"
+          >Máximo de menores sin cama<input
+            name="menores"
+            type="number"
+            min="0"
+          max="1"
+            step="1"
+            [(ngModel)]="habitacion.maxMenoresSinCama"
+            required
+          /><small
+            >Solo menores de siete años; requieren responsable adulto.</small
+          ></label
+        >
+      </div>
+      }@else if(modoEdicion==='item'){
+      <label class="field"
+        >Nombre del mueble<input
+          name="nombre"
+          maxlength="100"
+          [(ngModel)]="item.nombreItem"
+          required
+      /></label>
+      <label class="field"
+        >Tipo<select name="tipoItem" [(ngModel)]="item.idTipoItem" required>
+          @for(t of catalogos()?.tiposItem;track t.idTipoItem){
+          <option [ngValue]="t.idTipoItem">{{t.nombreItem}}</option>
+          }
+        </select></label
+      >
+      <label class="field"
+        >Estado<select
+          name="estadoItem"
+          [(ngModel)]="item.estadoItem"
+          [disabled]="item.estadoItem==='En habitacion'"
+        >
+          @for(e of catalogos()?.estadosItem;track e){
+          <option [value]="e" [disabled]="e==='En habitacion'">{{e}}</option>
+          }
+        </select></label
+      >
+      <p class="inline-note">
+        Para asignar, trasladar o retirar el mueble utiliza Ubicación. Cada
+        unidad representa un mueble físico.
+      </p>
+      }@else if(modoEdicion==='asignacion'||modoEdicion==='conservacion'){
+      <p class="subtitle">{{item.nombreItem}}</p>
+      <p class="inline-note">Responsable: {{operadores()?.usuarios?.[0]?.nombre}}</p>
+      @if(modoEdicion==='asignacion'){<label class="field"
+        >Habitación de destino<select
+          name="destino"
+          [(ngModel)]="asignacion.idHabitacion"
+          [disabled]="operacionFijada()"
+        >
+          <option [ngValue]="null">
+            Retirar de la habitación / dejar sin asignar
+          </option>
+          @for(h of habitaciones();track h.idHabitacion){
+          <option [ngValue]="h.idHabitacion">
+            {{h.numeroCuarto}} · {{h.nombreTipo}}
+          </option>
+          }
+        </select></label
+      >}
+      <label class="field"
+        >Conservación<select
+          name="conservacion"
+          [(ngModel)]="asignacion.estadoActualItem"
+          [disabled]="operacionFijada()"
+        >
+          @for(e of catalogos()?.estadosConservacion;track e){
+          <option [value]="e">{{e}}</option>
+          }
+        </select></label
+      >
+      <label class="field"
+        >Motivo<input
+          name="motivo"
+          maxlength="180"
+          [(ngModel)]="asignacion.observacion"
+          [disabled]="operacionFijada()"
+          required
+      /></label>
+      @if(operacionFijada()){
+      <p class="inline-note">
+        Se conserva la misma operación para reintentar sin duplicar el
+        movimiento.
+      </p>
+      } }@else if(modoEdicion==='tipoHabitacion'||modoEdicion==='tipoItem'){
+      <label class="field"
+        >Nombre del tipo<input
+          name="nombreTipo"
+          maxlength="30"
+          [(ngModel)]="tipo.nombre"
+          required
+      /></label>
+      @if(modoEdicion==='tipoHabitacion'){<label class="field"
+        >Capacidad máxima<input
+          name="capacidad"
+          type="number"
+          min="1"
+          max="99"
+          step="1"
+          [(ngModel)]="tipo.capacidadMax"
+          required /></label
+      ><label class="field"
+        >Precio base por noche<input
+          name="precioTipo"
+          type="number"
+          min="0"
+          max="99999999.99"
+          step="0.01"
+          [(ngModel)]="tipo.precioBase"
+          required /></label
+      >} }@else{
+      <p>Se desactivará {{item.nombreItem}}. El historial se conservará.</p>
+      } @if(errorModal()){
+      <p class="error-box" role="alert">{{errorModal()}}</p>
+      }
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="button"
+          [disabled]="ocupado()"
+          (click)="cerrar()"
+        >
+          Cerrar</button
+        ><button
+          type="submit"
+          class="button primary"
+          [disabled]="ocupado()||formulario.invalid"
+        >
+          {{ocupado()?'Guardando…':operacionFijada()?'Reintentar la misma
+          operación':'Guardar'}}
+        </button>
+      </div>
+    </form>
+  </section>
+</div>
+}

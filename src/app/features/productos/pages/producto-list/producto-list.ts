@@ -5,34 +5,24 @@ import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { ProductoService } from '../../services/producto-service';
 import { CategoriaService } from '../../../categorias/services/categoria-service';
-import {
-  AjusteStock,
-  MovimientoInventario,
-  Producto,
-} from '../../models/producto.model';
+import { AjusteStock, MovimientoInventario, Producto } from '../../models/producto.model';
 import { Categoria } from '../../../categorias/models/categoria.model';
-import { Catalogo } from '../../../../core/models/catalogo.model';
+import { SesionService } from '../../../../core/services/sesion-service';
+import { CategoriaDialog } from '../../../categorias/components/categoria-dialog/categoria-dialog';
 import { Pagina } from '../../../../core/models/pagina-response';
 import { mensajeError } from '../../../../core/utils/http-error';
 import { NotificacionService } from '../../../../core/services/notificacion.service';
 import { Icon } from '../../../../shared/components/icono/icono';
 import { DialogFocus } from '../../../../shared/directives/dialog-focus';
-import { ImagenUpload } from '../../../../shared/components/imagen-upload/imagen-upload';
 
 @Component({
   selector: 'app-producto-list',
-  imports: [
-    FormsModule,
-    CurrencyPipe,
-    RouterLink,
-    Icon,
-    DialogFocus,
-    ImagenUpload,
-  ],
+  imports: [FormsModule, CurrencyPipe, RouterLink, Icon, DialogFocus, CategoriaDialog],
   templateUrl: './producto-list.html',
   styleUrl: './producto-list.css',
 })
 export class ProductoList implements OnInit {
+  protected readonly sesion = inject(SesionService);
   private productos = inject(ProductoService);
   private categoriasService = inject(CategoriaService);
   private avisos = inject(NotificacionService);
@@ -40,7 +30,7 @@ export class ProductoList implements OnInit {
   // Estados de datos
   respuesta = signal<Pagina<Producto> | null>(null);
   categorias = signal<Categoria[]>([]);
-  usuarios = signal<Catalogo[]>([]);
+  categoriasAbiertas = signal(false);
   error = signal('');
   cargando = signal(true);
   fallidas = signal<Set<number>>(new Set());
@@ -68,18 +58,20 @@ export class ProductoList implements OnInit {
   ajustandoProducto = signal<Producto | null>(null);
   ajusteStockAnterior = 0;
   ajusteStockNuevo: number | null = null;
-  ajusteUsuario: number | null = null;
   ajusteObservacion = '';
   claveOperacion = '';
-  ultimoPayloadEnviado: {
-    idUsuario: number;
-    stockAnterior: number;
-    stockNuevo: number;
-    observacion: string;
-  } | null = null;
+  ultimoPayloadEnviado: AjusteStock | null = null;
   ocupadoAjuste = signal(false);
   ajusteError = signal('');
   ajusteConflicto = signal('');
+
+  categoriaCreada(categoria: Categoria) {
+    this.categorias.update((categorias) =>
+      [...categorias.filter((c) => c.idCategoria !== categoria.idCategoria), categoria].sort(
+        (a, b) => a.nombreCategoria.localeCompare(b.nombreCategoria, 'es'),
+      ),
+    );
+  }
 
   ngOnInit() {
     this.cargar();
@@ -104,12 +96,10 @@ export class ProductoList implements OnInit {
         this.stockBajo,
       ),
       categorias: this.categoriasService.listar(),
-      usuarios: this.productos.usuarios(),
     }).subscribe({
       next: (r) => {
         this.respuesta.set(r.page);
         this.categorias.set(r.categorias);
-        this.usuarios.set(r.usuarios);
         this.cargando.set(false);
       },
       error: (e) => {
@@ -133,29 +123,8 @@ export class ProductoList implements OnInit {
     });
   }
 
-  onImagenDetalleCambiada(prod: Producto, nuevaRuta: string | null) {
-    const actualizado: Producto = { ...prod, imagenRuta: nuevaRuta };
-    this.detalleProducto.set(actualizado);
-    this.fallidas.update((set) => {
-      const next = new Set(set);
-      next.delete(prod.idProducto);
-      return next;
-    });
-    this.respuesta.update((pag) => {
-      if (!pag) return pag;
-      return {
-        ...pag,
-        contenido: pag.contenido.map((p) =>
-          p.idProducto === prod.idProducto
-            ? { ...p, imagenRuta: nuevaRuta }
-            : p,
-        ),
-      };
-    });
-  }
-
   esStockBajo(p: Producto): boolean {
-    return p.stockBajo ?? (p.stock <= p.stockMinimo);
+    return p.stockBajo ?? p.stock <= p.stockMinimo;
   }
 
   // Operación: Retiro de venta (Baja lógica mediante DELETE /productos/{id})
@@ -175,9 +144,7 @@ export class ProductoList implements OnInit {
       next: () => {
         this.ocupado.set(false);
         this.desactivando.set(null);
-        this.avisos.mostrar(
-          'Producto retirado de la venta. Su historial se conserva intacto.',
-        );
+        this.avisos.mostrar('Producto retirado de la venta. Su historial se conserva intacto.');
         this.cargar();
       },
       error: (e) => {
@@ -194,6 +161,10 @@ export class ProductoList implements OnInit {
     this.cargandoMovimientos.set(true);
     this.errorMovimientos.set('');
     this.movimientos.set([]);
+    if (!this.sesion.permite('PRODUCTOS:VER_MOVIMIENTOS')) {
+      this.cargandoMovimientos.set(false);
+      return;
+    }
 
     this.productos.movimientos(p.idProducto).subscribe({
       next: (movs) => {
@@ -218,7 +189,6 @@ export class ProductoList implements OnInit {
     this.ajustandoProducto.set(p);
     this.ajusteStockAnterior = p.stock;
     this.ajusteStockNuevo = null;
-    this.ajusteUsuario = null;
     this.ajusteObservacion = '';
     this.ajusteError.set('');
     this.ajusteConflicto.set('');
@@ -227,37 +197,16 @@ export class ProductoList implements OnInit {
   }
 
   cerrarAjuste() {
-    if (this.ocupadoAjuste()) return;
+    if (this.ocupadoAjuste() || this.ultimoPayloadEnviado) return;
     this.ajustandoProducto.set(null);
     this.ajusteError.set('');
     this.ajusteConflicto.set('');
     this.ultimoPayloadEnviado = null;
   }
 
-  onAjusteDataChange() {
-    // Si cambian los datos respecto al intento anterior, generar una nueva clave de operación
-    if (this.ultimoPayloadEnviado) {
-      const cambioUsuario =
-        this.ajusteUsuario !== this.ultimoPayloadEnviado.idUsuario;
-      const cambioStock =
-        this.ajusteStockNuevo !== this.ultimoPayloadEnviado.stockNuevo;
-      const cambioObs =
-        (this.ajusteObservacion || '').trim() !==
-        this.ultimoPayloadEnviado.observacion;
-
-      if (cambioUsuario || cambioStock || cambioObs) {
-        this.claveOperacion = crypto.randomUUID();
-        this.ultimoPayloadEnviado = null;
-        this.ajusteError.set('');
-        this.ajusteConflicto.set('');
-      }
-    }
-  }
-
   esAjusteValido(): boolean {
     return (
-      this.ajusteUsuario !== null &&
-      this.ajusteUsuario > 0 &&
+      !!this.sesion.actual()?.idUsuario &&
       this.ajusteStockNuevo !== null &&
       this.ajusteStockNuevo !== undefined &&
       Number.isInteger(this.ajusteStockNuevo) &&
@@ -277,21 +226,15 @@ export class ProductoList implements OnInit {
     this.ajusteError.set('');
     this.ajusteConflicto.set('');
 
-    const payload: AjusteStock = {
+    const payload: AjusteStock = this.ultimoPayloadEnviado ?? {
       claveOperacion: this.claveOperacion,
-      idUsuario: this.ajusteUsuario!,
+      idUsuario: this.sesion.actual()!.idUsuario,
       stockAnterior: this.ajusteStockAnterior,
       stockNuevo: this.ajusteStockNuevo!,
       observacion: this.ajusteObservacion.trim(),
     };
 
-    // Guardar referencia del payload enviado para reintentos idempotentes
-    this.ultimoPayloadEnviado = {
-      idUsuario: payload.idUsuario,
-      stockAnterior: payload.stockAnterior,
-      stockNuevo: payload.stockNuevo,
-      observacion: payload.observacion,
-    };
+    this.ultimoPayloadEnviado = payload;
 
     this.productos.ajustarStock(prod.idProducto, payload).subscribe({
       next: (actualizado) => {
@@ -309,15 +252,20 @@ export class ProductoList implements OnInit {
       error: (e) => {
         this.ocupadoAjuste.set(false);
         // Si hay conflicto (por ejemplo stock concurrente modificado)
+        const rechazado = e.status >= 400 && e.status < 500;
         const esConflicto =
-          e.status === 409 ||
-          (e.error?.message &&
-            e.error.message.toLowerCase().includes('stock'));
+          rechazado && (e.status === 409 || /stock|existencias/i.test(mensajeError(e)));
+        if (rechazado) {
+          this.claveOperacion = crypto.randomUUID();
+          this.ultimoPayloadEnviado = null;
+        }
 
         if (esConflicto) {
           // Refrescar saldo observado desde el backend
+          this.ocupadoAjuste.set(true);
           this.productos.obtener(prod.idProducto).subscribe({
             next: (refrescado) => {
+              this.ocupadoAjuste.set(false);
               this.ajusteStockAnterior = refrescado.stock;
               this.claveOperacion = crypto.randomUUID();
               this.ultimoPayloadEnviado = null;
@@ -326,11 +274,16 @@ export class ProductoList implements OnInit {
               );
             },
             error: () => {
+              this.ocupadoAjuste.set(false);
               this.ajusteError.set(mensajeError(e));
             },
           });
         } else {
-          this.ajusteError.set(mensajeError(e));
+          const recuperable = !e.status || e.status >= 500;
+          this.ajusteError.set(
+            mensajeError(e) +
+              (recuperable ? ' Reintenta el mismo ajuste para confirmar el resultado.' : ''),
+          );
         }
       },
     });

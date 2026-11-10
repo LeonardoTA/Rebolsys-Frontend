@@ -1,37 +1,59 @@
-import { DialogFocus } from '../../../../shared/directives/dialog-focus';
-import { Habitacion, Bloque } from '../../models/habitacion.model';
-import { fechaLocal } from '../../../../core/utils/fechas';
-import { mensajeError } from '../../../../core/utils/http-error';
-import { Icon } from '../../../../shared/components/icono/icono';
-import { HabitacionService } from '../../services/habitacion-service';
-import { OcupacionDialog } from '../../components/ocupacion-dialog/ocupacion-dialog';
+import { PermisosUi } from "../../../../core/services/permisos-ui";
+import { DialogFocus } from "../../../../shared/directives/dialog-focus";
+import { Habitacion, Bloque, MobiliarioHabitacion } from "../../models/habitacion.model";
+import { fechaLocal } from "../../../../core/utils/fechas";
+import { mensajeError } from "../../../../core/utils/http-error";
+import { Icon } from "../../../../shared/components/icono/icono";
+import { HabitacionService } from "../../services/habitacion-service";
+import { OcupacionDialog } from "../../components/ocupacion-dialog/ocupacion-dialog";
 
-import { Component, inject, signal, computed } from '@angular/core';
-import { CurrencyPipe, DatePipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { Component, inject, signal, computed } from "@angular/core";
+import { CurrencyPipe, DatePipe } from "@angular/common";
+import { FormsModule } from "@angular/forms";
+import { RouterLink } from "@angular/router";
 
 @Component({
-  selector: 'app-habitaciones',
+  selector: "app-habitaciones",
   imports: [
     CurrencyPipe,
     DatePipe,
     FormsModule,
+    RouterLink,
     Icon,
     DialogFocus,
     OcupacionDialog,
   ],
-  templateUrl: './habitacion-list.html',
-  styleUrl: './habitacion-list.css',
+  templateUrl: "./habitacion-list.html",
+  styleUrl: "./habitacion-list.css",
 })
 export class HabitacionList {
+  readonly acceso = inject(PermisosUi);
   private readonly habitacionService = inject(HabitacionService);
   rooms = signal<Habitacion[]>([]);
   desde = signal(fechaLocal(new Date()));
-  piso = signal('todos');
+  piso = signal("todos");
   cargando = signal(true);
-  error = signal('');
+  error = signal("");
   detalle = signal<Habitacion | null>(null);
+  mobiliario = signal<MobiliarioHabitacion[]>([]);
+  cargandoMobiliario = signal(false);
+  errorMobiliario = signal('');
   configurando = signal<Habitacion | null>(null);
+  private consultaId = 0;
+  abrirDetalle(room: Habitacion) {
+    this.detalle.set(room);
+    this.mobiliario.set([]);
+    this.errorMobiliario.set('');
+    this.cargandoMobiliario.set(true);
+    this.habitacionService.mobiliario(room.idHabitacion).subscribe({
+      next: (items) => { if (this.detalle()?.idHabitacion === room.idHabitacion) {
+        this.mobiliario.set(items); this.cargandoMobiliario.set(false);
+      } },
+      error: (e) => { if (this.detalle()?.idHabitacion === room.idHabitacion) {
+        this.errorMobiliario.set(mensajeError(e)); this.cargandoMobiliario.set(false);
+      } },
+    });
+  }
   abrirOcupacion(room: Habitacion) {
     this.detalle.set(null);
     this.configurando.set(room);
@@ -40,7 +62,7 @@ export class HabitacionList {
     this.configurando.set(null);
     this.cargar();
   }
-  inicio = computed(() => new Date(this.desde() + 'T00:00:00'));
+  inicio = computed(() => new Date(this.desde() + "T00:00:00"));
   dias = computed(() =>
     Array.from({ length: 7 }, (_, i) => {
       const d = new Date(this.inicio());
@@ -54,7 +76,7 @@ export class HabitacionList {
   filtradas = computed(() =>
     this.rooms().filter(
       (r) =>
-        this.piso() === 'todos' || this.roomFloor(r.numero) === this.piso(),
+        this.piso() === "todos" || this.roomFloor(r.numero) === this.piso(),
     ),
   );
   disponibles = computed(() => this.rooms().filter((r) => r.disponible).length);
@@ -64,23 +86,26 @@ export class HabitacionList {
   bloqueadas = computed(
     () =>
       this.rooms().filter((r) =>
-        ['MANTENIMIENTO', 'LIMPIEZA'].includes(r.estado),
+        ["MANTENIMIENTO", "LIMPIEZA"].includes(r.estado),
       ).length,
   );
   constructor() {
     this.cargar();
   }
   cargar() {
-    this.error.set('');
+    const id = ++this.consultaId;
+    this.error.set("");
     this.cargando.set(true);
     const end = new Date(this.inicio());
     end.setDate(end.getDate() + 7);
     this.habitacionService.listar(this.desde(), fechaLocal(end)).subscribe({
       next: (r) => {
+        if (id !== this.consultaId) return;
         this.rooms.set(r);
         this.cargando.set(false);
       },
       error: (e) => {
+        if (id !== this.consultaId) return;
         this.error.set(mensajeError(e));
         this.cargando.set(false);
       },
@@ -108,16 +133,16 @@ export class HabitacionList {
       .length;
   }
   roomFloor(number: string) {
-    return /^\d{3,}$/.test(number) ? number.slice(0, -2) : '—';
+    return /^\d{3,}$/.test(number) ? number.slice(0, -2) : "—";
   }
   estadoTexto(s: string) {
     return (
       (
         {
-          DISPONIBLE: 'Disponible',
-          OCUPADO: 'Ocupado',
-          MANTENIMIENTO: 'Mantenimiento',
-          LIMPIEZA: 'Limpieza',
+          DISPONIBLE: "Disponible",
+          OCUPADO: "Ocupado",
+          MANTENIMIENTO: "Mantenimiento",
+          LIMPIEZA: "Limpieza",
         } as Record<string, string>
       )[s] || s
     );

@@ -1,10 +1,24 @@
 <header class="topbar no-print">
   <button
     class="menu-button"
-    aria-label="Abrir menú"
+    [attr.aria-label]="menuAbierto() ? 'Cerrar menú' : 'Abrir menú'"
+    [attr.aria-expanded]="menuAbierto()"
+    aria-controls="menu-principal"
     (click)="toggleMenu.emit()"
   >
     <app-icon name="menu" />
   </button>
   <h1>{{ titulo() }}</h1>
+  @if(sesion.actual();as s){
+    <span class="session-user">{{s.usuario}}
+      <small>{{ s.modo === 'PRUEBA' ? 'Sesión de prueba' : (s.roles?.join(', ') || 'Sesión activa') }}</small>
+      @if (s.idTurno) { <small>Turno #{{ s.idTurno }} abierto</small> }
+    </span>
+    @if (s.modo === 'ACTIVA') { <button class="button small" (click)="cerrarSesion()">Cerrar sesión</button> }
+  } @else if(sesion.error()){<button
+    class="button small"
+    (click)="reintentarSesion()"
+  >
+    Reintentar sesión</button
+  >}
 </header>

@@ -1,156 +1,131 @@
-<a class="button back-link" routerLink="/mantenimiento/productos">
-  <app-icon name="arrow" />Regresar a productos
-</a>
-
+<div class="editor-toolbar">
+  <a class="button back-link" routerLink="/configuraciones/productos"
+    ><app-icon name="arrow" />Regresar a productos</a
+  >
+  <button
+    class="button"
+    [disabled]="guardando()||confirmacionPendiente()"
+    (click)="categoriasAbiertas.set(true)"
+  >
+    <app-icon name="plus" />Crear categoría
+  </button>
+</div>
 @if (cargando()) {
-  <div class="loading-state panel">
-    <span class="spinner"></span>Cargando producto…
-  </div>
+<div class="loading-state panel">Cargando producto…</div>
 } @else {
-  <form class="product-editor panel" [formGroup]="form" (ngSubmit)="guardar()">
-    <div class="editor-fields">
-      <p class="eyebrow">CATÁLOGO DE LA TIENDITA</p>
-      <h2>{{ id() ? 'Editar producto' : 'Agregar producto' }}</h2>
-
-      <div class="form-grid">
-        <label class="field span-2">
-          Nombre del producto *
-          <input
-            formControlName="nombreProducto"
-            maxlength="100"
-            placeholder="Ej. Agua mineral 500 ml"
-          />
-        </label>
-
-        <label class="field">
-          Categoría *
-          <select formControlName="idCategoria">
-            <option [ngValue]="null">Seleccionar categoría</option>
-            @for (c of categorias(); track c.idCategoria) {
-              <option [ngValue]="c.idCategoria">{{ c.nombreCategoria }}</option>
-            }
-          </select>
-        </label>
-
-        <label class="field">
-          Estado *
-          <select formControlName="estadoProducto">
-            <option value="ACTIVO">Activo</option>
-            <option value="INACTIVO">Inactivo</option>
-          </select>
-        </label>
-
-        <div class="field span-2 new-category">
-          <label>
-            Nueva categoría (opcional)
-            <input
-              [value]="nuevaCategoria()"
-              (input)="nuevaCategoria.set($any($event.target).value)"
-              maxlength="30"
-              placeholder="Ej. Bebidas frías"
-            />
-          </label>
-          <button
-            type="button"
-            class="button small"
-            [disabled]="!nuevaCategoria().trim() || creandoCategoria()"
-            (click)="crearCategoria()"
-          >
-            {{ creandoCategoria() ? 'Creando…' : 'Crear categoría' }}
-          </button>
-        </div>
-
-        <label class="field">
-          Precio por unidad (S/) *
-          <input
-            type="number"
-            min="0"
-            max="99999999.99"
-            step="0.01"
-            formControlName="precioActual"
-            placeholder="0.00"
-          />
-        </label>
-
-        <label class="field">
-          Stock mínimo *
-          <input
-            type="number"
-            min="0"
-            max="999999999"
-            step="1"
-            formControlName="stockMinimo"
-            placeholder="0"
-          />
-        </label>
-
-        <label class="field span-2">
-          Existencias
-          <input
-            type="number"
-            [value]="form.get('stock')?.value ?? 0"
-            readonly
-            disabled
-          />
-          <small class="stock-field-note">
-            @if (!id()) {
-              Los productos se registran sin existencias. Después puedes cargar el stock desde «Ajustar existencias».
-            } @else {
-              {{ form.get('stock')?.value }} unidades. Para cambiarlas, utiliza «Ajustar existencias».
-            }
-          </small>
-        </label>
-
-        <div class="stock-note span-2">
-          <app-icon name="info" />
-          <p>
-            Cada ajuste conserva su responsable y motivo. Las ventas descuentan existencias automáticamente.
-          </p>
-        </div>
-
-        @if (id() && numeroId() > 0) {
-          <div class="field span-2">
-            <app-imagen-upload
-              tipo="productos"
-              [id]="numeroId()"
-              [ruta]="form.get('imagenRuta')?.value"
-              [bloqueado]="guardando()"
-              (cambiada)="onImagenCambiada($event)"
-            />
-          </div>
-        }
-
-        @if (!id()) {
-          <p class="muted span-2">Después de registrar el producto podrás agregar su fotografía desde Editar.</p>
-        }
-      </div>
-
-      @if (error()) {
-        <p class="error-box" role="alert">{{ error() }}</p>
+<form class="product-editor panel" [formGroup]="form" (ngSubmit)="guardar()">
+  <div class="editor-fields">
+    <p class="eyebrow">CATÁLOGO DE LA TIENDITA</p>
+    <h2>{{ id() ? 'Editar producto' : 'Agregar producto' }}</h2>
+    <div class="form-grid">
+      <label class="field span-2"
+        >Nombre del producto *<input
+          formControlName="nombreProducto"
+          maxlength="100"
+          placeholder="Ej. Agua mineral 500 ml" /></label
+      ><label class="field span-2"
+        >Descripción (opcional)<textarea
+          rows="3"
+          maxlength="500"
+          formControlName="descripcion"
+          placeholder="Ej. Agua mineral sin gas, presentación de 500 ml"
+        ></textarea
+        ><small>Hasta 500 caracteres.</small></label
+      ><label class="field"
+        >Categoría *<select formControlName="idCategoria">
+          <option [ngValue]="null">Seleccionar categoría</option>
+          @for (c of categorias(); track c.idCategoria) {
+          <option [ngValue]="c.idCategoria">{{ c.nombreCategoria }}</option>
+          }
+        </select></label
+      ><label class="field"
+        >Estado *<select formControlName="estadoProducto">
+          <option value="ACTIVO">Activo</option>
+          <option value="INACTIVO">Inactivo</option>
+        </select></label
+      >
+      <label class="field"
+        >Precio por unidad (S/) *<input
+          type="number"
+          min="0"
+          max="99999999.99"
+          step="0.01"
+          formControlName="precioActual" /></label
+      ><label class="field"
+        >Stock mínimo *<input
+          type="number"
+          min="0"
+          max="999999999"
+          step="1"
+          formControlName="stockMinimo" /></label
+      ><label class="field"
+        >{{id()?'Existencias actuales':'Existencias iniciales'}} *<input
+          type="number"
+          min="0"
+          max="999999999"
+          step="1"
+          formControlName="stock"
+      /></label>
+      @if(!id()){
+      <p class="inline-note">Las existencias iniciales se registran con el usuario de la sesión actual.</p>
       }
-
-      <div class="form-actions">
-        <a class="button" routerLink="/mantenimiento/productos">Cancelar</a>
-        <button class="button primary" type="submit" [disabled]="guardando()">
-          <app-icon name="check" />{{ guardando() ? 'Guardando…' : 'Guardar producto' }}
-        </button>
+      <div class="stock-note">
+        <app-icon name="info" />
+        <p>
+          {{id()?'Para reponer, descontar o corregir existencias utiliza
+          «Ajustar existencias» en el listado.':'Las existencias iniciales se
+          guardan con el producto y registran su entrada de inventario
+          automáticamente.'}} Las ventas descuentan stock automáticamente.
+        </p>
       </div>
+      <label class="field span-2"
+        >Ruta de imagen (opcional)<input
+          formControlName="imagenRuta"
+          maxlength="300"
+          (input)="imagenFallida.set(false)"
+          placeholder="/imagenes/productos/agua.webp"
+        /><small
+          >Ruta del sitio a PNG, JPG, WEBP, AVIF o GIF. Por ejemplo:
+          /imagenes/productos/agua.webp.</small
+        ></label
+      >
     </div>
-
-    <aside class="product-preview">
-      <p class="eyebrow">VISTA PREVIA</p>
-      <div class="preview-img-wrapper">
-        <img
-          [src]="vistaImagen()"
-          (error)="imagenFallida.set(true)"
-          alt="Vista previa del producto"
-        />
-      </div>
-      <h3>{{ form.get('nombreProducto')?.value || 'Nombre del producto' }}</h3>
-      <strong>{{ (form.get('precioActual')?.value || 0) | currency: 'PEN' : 'S/ ' }}</strong>
-      <p class="muted">
-        Agrega una fotografía para identificar el producto.
-      </p>
-    </aside>
-  </form>
-}
+    @if (error()) {
+    <p class="error-box" role="alert">{{ error() }}</p>
+    }
+    <div class="form-actions">
+      <a class="button" routerLink="/configuraciones/productos">Cancelar</a
+      ><button
+        class="button primary"
+        type="submit"
+        [disabled]="guardando()||confirmacionPendiente()"
+      >
+        <app-icon name="check" />{{ guardando() ? 'Guardando…' : 'Guardar
+        producto' }}
+      </button>
+    </div>
+  </div>
+  <aside class="product-preview">
+    <p class="eyebrow">VISTA PREVIA</p>
+    <img
+      [src]="vistaImagen()"
+      (error)="imagenFallida.set(true)"
+      alt="Vista previa del producto"
+    />
+    <h3>{{ form.get('nombreProducto')!.value || 'Nombre del producto' }}</h3>
+    @if(form.get('descripcion')!.value){
+    <p class="product-description">{{form.get('descripcion')!.value}}</p>
+    }
+    <strong
+      >{{ form.get('precioActual')!.value || 0 | currency: 'PEN' : 'S/ '
+      }}</strong
+    >
+    <p class="muted">
+      Si la ruta aún no está disponible, se muestra la imagen de respaldo.
+    </p>
+  </aside>
+</form>
+} @if(categoriasAbiertas()){<app-categoria-dialog
+  (cerrar)="categoriasAbiertas.set(false)"
+  (creada)="categoriaCreada($event)"
+/>}

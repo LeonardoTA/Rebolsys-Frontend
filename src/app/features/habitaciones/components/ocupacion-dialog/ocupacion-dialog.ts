@@ -51,7 +51,7 @@ export class OcupacionDialog implements OnInit {
       [
         Validators.required,
         Validators.min(0),
-        Validators.max(98),
+        Validators.max(1),
         Validators.pattern(/^[0-9]+$/),
       ],
     ],

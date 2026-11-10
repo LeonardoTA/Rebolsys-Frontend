@@ -1,0 +1,350 @@
+<div
+  class="modal-backdrop receipt-overlay"
+  (click)="!ocupado() && cerrar.emit()"
+>
+  <section
+    appDialog
+    (dialogEscape)="!ocupado() && cerrar.emit()"
+    class="modal wide-modal receipt-sheet"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="comprobante-titulo"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="modal-header no-print">
+      <p class="eyebrow">COMPROBANTES · RESERVA R{{reserva().idReserva}}</p>
+      <button
+        class="icon-button"
+        aria-label="Cerrar comprobante"
+        [disabled]="ocupado()"
+        (click)="cerrar.emit()"
+      >
+        <app-icon name="close" />
+      </button>
+    </header>
+    <h2 id="comprobante-titulo">Boleta o factura</h2>
+    @if(cargando()){
+    <p class="loading-state">Consultando la cuenta…</p>
+    } @else {
+    <div class="no-print">
+      <label class="field"
+        >Cuenta de la reserva<select
+          [ngModel]="seleccion()"
+          (ngModelChange)="seleccion.set($event);cambiarCuenta()"
+          [disabled]="ocupado() || emisionFijada()"
+        >
+          @for(c of cuentas();track c.idCuenta){
+          <option [ngValue]="c.idVenta??0">
+            {{c.idVenta?'Consumo separado · venta #'+c.idVenta:'Alojamiento y
+            consumos consolidados'}} · {{c.total | currency:'PEN':'S/ '}}
+          </option>
+          }
+        </select></label
+      >
+    </div>
+    @if(documento();as doc){
+    <p class="receipt-number">
+      <strong>{{doc.tipo}} {{doc.serie}}-{{doc.numero}}</strong>
+    </p>
+    <p>{{doc.receptorNombre}} · {{doc.receptorNumeroDoc}}</p>
+    <p class="muted">
+      Reserva R{{reserva().idReserva}} · {{doc.fechaEmision | date:'dd/MM/yyyy
+      HH:mm'}}
+    </p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Concepto</th>
+            <th>Cantidad</th>
+            <th>Importe</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for(l of doc.lineas;track $index){
+          <tr>
+            <td>{{l.descripcion}}</td>
+            <td>{{l.cantidad}}</td>
+            <td>{{l.total | currency:'PEN':'S/ '}}</td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="payment-total">
+      <span>Total con impuesto incluido</span
+      ><strong>{{doc.total | currency:'PEN':'S/ '}}</strong>
+    </div>
+    <p>
+      Pagado: {{doc.pagado | currency:'PEN':'S/ '}} · Saldo: {{doc.saldo |
+      currency:'PEN':'S/ '}}
+    </p>
+    <p class="inline-note">
+      Entorno beta de pruebas. Sin validez tributaria de producción.
+    </p>
+    <div class="no-print">
+      @if(emision();as e){
+      <h3 class="spaced-title">Emisión electrónica · {{e.estado}}</h3>
+      <p><strong>{{e.serie}}-{{e.correlativo}}</strong> · {{e.ambiente}}</p>
+      <p>
+        Valor de venta: {{e.subtotal | currency:'PEN':'S/ '}} · Impuesto:
+        {{e.igv | currency:'PEN':'S/ '}}
+      </p>
+      @if(e.mensajeRespuesta){
+      <p class="inline-note">{{e.codigoRespuesta}} · {{e.mensajeRespuesta}}</p>
+      } @if(e.estado==='INCIERTO'||e.estado==='ENVIANDO'){
+      <p class="inline-note">
+        Consulta o actualiza el estado. Una respuesta perdida no significa que
+        la emisión haya fallado.
+      </p>
+      }
+      <div class="modal-actions">
+        <button
+          class="button"
+          [disabled]="ocupado()"
+          (click)="cargarEstado(doc.idCuenta!)"
+        >
+          Actualizar estado
+        </button>
+        @if(e.estado==='PREPARADO'||e.estado==='ERROR_ENVIO'){<button
+          class="button primary"
+          [disabled]="ocupado()"
+          (click)="enviar()"
+        >
+          Enviar a APIsPerú beta</button
+        >} @if(e.estado==='INCIERTO'||e.estado==='ENVIANDO'){<button
+          class="button primary"
+          [disabled]="ocupado()"
+          (click)="consultar()"
+        >
+          Consultar respuesta beta</button
+        >} @if(e.xmlDisponible){<button
+          class="button"
+          [disabled]="ocupado()"
+          (click)="descargar('xml')"
+        >
+          XML</button
+        >} @if(e.cdrDisponible){<button
+          class="button"
+          [disabled]="ocupado()"
+          (click)="descargar('cdr')"
+        >
+          CDR</button
+        >} @if(e.estado==='ACEPTADO'){<button
+          class="button primary"
+          [disabled]="ocupado()"
+          (click)="descargar('pdf')"
+        >
+          Descargar PDF</button
+        >}
+      </div>
+      } @else if(!estadoConsultado()){
+      <p class="inline-note">
+        Primero se debe confirmar si este comprobante ya tiene una emisión
+        electrónica.
+      </p>
+      <button class="button" (click)="cargarEstado(doc.idCuenta!)">
+        Consultar estado electrónico
+      </button>
+      } @else if(configuracion()?.habilitada &&
+      !configuracion()?.configuracionPendiente?.length){
+      <h3 class="spaced-title">Preparar emisión electrónica beta</h3>
+      <label class="field"
+        >Impuesto total (%)<input
+          type="number"
+          min="0.01"
+          max="100"
+          step="0.01"
+          [(ngModel)]="tasaIgv"
+          [disabled]="ocupado()||fiscalFijada()"
+      /></label>
+      <p class="muted">
+        Revisa la tasa aplicable antes de preparar. El precio ya incluye el
+        impuesto.
+      </p>
+      <label class="field"
+        >Dirección fiscal del receptor
+        {{doc.tipo==='FACTURA'?'(obligatoria)':'(opcional)'}}<input
+          maxlength="200"
+          [(ngModel)]="direccion"
+          [disabled]="ocupado()||fiscalFijada()"
+      /></label>
+      @if(doc.saldo>0){
+      <p class="inline-note">
+        El comprobante tiene saldo. Registra las cuotas para declararlo a
+        crédito.
+      </p>
+      @for(c of cuotas;track $index){
+      <div class="form-grid">
+        <label class="field"
+          >Fecha de pago<input
+            type="date"
+            [min]="hoy"
+            [(ngModel)]="c.fechaPago"
+            [disabled]="ocupado()||fiscalFijada()" /></label
+        ><label class="field"
+          >Monto<input
+            type="number"
+            min="0.01"
+            step="0.01"
+            [(ngModel)]="c.monto"
+            [disabled]="ocupado()||fiscalFijada()" /></label
+        ><button
+          class="text-button"
+          [disabled]="ocupado()||fiscalFijada()"
+          (click)="cuotas.splice($index,1)"
+        >
+          Quitar cuota
+        </button>
+      </div>
+      }
+      <button
+        class="button small"
+        [disabled]="ocupado()||fiscalFijada()"
+        (click)="agregarCuota()"
+      >
+        Añadir cuota
+      </button>
+      }
+      <button
+        class="button primary full spaced-title"
+        [disabled]="ocupado()"
+        (click)="preparar()"
+      >
+        {{ocupado()?'Preparando…':fiscalFijada()?'Recuperar
+        preparación':'Preparar comprobante electrónico beta'}}
+      </button>
+      } @else {
+      <p class="inline-note">
+        La facturación beta necesita configuración en el backend. El comprobante
+        interno ya está generado.
+      </p>
+      }
+      <button class="button full" [disabled]="ocupado()" (click)="imprimir()">
+        <app-icon name="print" />Imprimir comprobante interno
+      </button>
+    </div>
+    } @else if(cuenta();as c){
+    <div class="payment-total">
+      <span>Total de esta cuenta</span
+      ><strong>{{c.total | currency:'PEN':'S/ '}}</strong>
+    </div>
+    <p>
+      Pagado: {{c.pagado | currency:'PEN':'S/ '}} · Saldo: {{c.saldo |
+      currency:'PEN':'S/ '}}
+    </p>
+    <div class="form-grid">
+      <p class="inline-note">Usuario actual: {{catalogos().usuarios?.[0]?.nombre}}</p>
+      <label class="field"
+        >Turno de caja<select
+          [(ngModel)]="turno"
+          [disabled]="ocupado()||emisionFijada()"
+        >
+          @for(t of turnos();track t.idTurno){
+          <option [ngValue]="t.idTurno">#{{t.idTurno}} · {{t.usuario}}</option>
+          }@empty{
+          <option [ngValue]="null">Sin turno abierto</option>
+          }
+        </select></label
+      >
+      <label class="field"
+        >Tipo de comprobante<select
+          [(ngModel)]="tipo"
+          [disabled]="ocupado()||emisionFijada()"
+        >
+          <option value="BOLETA">Boleta</option>
+          <option value="FACTURA">Factura</option>
+        </select></label
+      >
+    </div>
+    <h3 class="spaced-title">Receptor</h3>
+    <button
+      class="button small"
+      [disabled]="ocupado()||emisionFijada()"
+      (click)="otroReceptor()"
+    >
+      Usar otro receptor
+    </button>
+    <div class="form-grid spaced-title">
+      <label class="field"
+        >Tipo de documento<select
+          [(ngModel)]="receptor.idTipoDocumento"
+          [disabled]="ocupado()||emisionFijada()||idCliente!==null"
+        >
+          @for(d of catalogos().documentos;track d.id){
+          <option [ngValue]="d.id">{{d.nombre}}</option>
+          }
+        </select></label
+      >
+      <label class="field"
+        >Número de documento<input
+          maxlength="50"
+          [(ngModel)]="receptor.numeroDocumento"
+          [disabled]="ocupado()||emisionFijada()||idCliente!==null"
+      /></label>
+    </div>
+    @if(idCliente===null){
+    <button
+      class="button small"
+      [disabled]="ocupado()||emisionFijada()"
+      (click)="buscar()"
+    >
+      Buscar receptor
+    </button>
+    <label class="partial-choice"
+      ><input
+        type="checkbox"
+        [(ngModel)]="receptor.empresa"
+        [disabled]="ocupado()||emisionFijada()"
+      />Persona jurídica</label
+    >
+    } @if(receptor.empresa){<label class="field"
+      >Razón social<input
+        maxlength="250"
+        [(ngModel)]="receptor.razonSocial"
+        [disabled]="ocupado()||emisionFijada()||idCliente!==null" /></label
+    >} @else{
+    <div class="form-grid">
+      <label class="field"
+        >Nombres<input
+          maxlength="100"
+          [(ngModel)]="receptor.nombres"
+          [disabled]="ocupado()||emisionFijada()||idCliente!==null" /></label
+      ><label class="field"
+        >Apellidos<input
+          maxlength="100"
+          [(ngModel)]="receptor.apellidos"
+          [disabled]="ocupado()||emisionFijada()||idCliente!==null"
+      /></label>
+    </div>
+    }
+    <label class="field"
+      >Dirección fiscal<input
+        maxlength="200"
+        [(ngModel)]="receptor.direccionFiscal"
+        [disabled]="ocupado()||emisionFijada()||idCliente!==null"
+    /></label>
+    <p class="inline-note">
+      Emitir fija el tipo, el receptor y las líneas del comprobante. No vuelve a
+      cobrar ni modifica los pagos.
+    </p>
+    <button
+      class="button primary full"
+      [disabled]="ocupado()||!turno||c.estado==='ANULADO'"
+      (click)="direccion=receptor.direccionFiscal??'';emitir()"
+    >
+      {{ocupado()?'Generando…':emisionFijada()?'Recuperar el mismo
+      comprobante':'Generar '+(tipo==='FACTURA'?'factura':'boleta')}}
+    </button>
+    } } @if(aviso()){
+    <p class="inline-note no-print" role="status">{{aviso()}}</p>
+    } @if(error()){
+    <p class="error-box no-print" role="alert">{{error()}}</p>
+    } @if(!cargando()&&!cuenta()){<button
+      class="button no-print"
+      (click)="cargar()"
+    >
+      Reintentar</button
+    >}
+  </section>
+</div>

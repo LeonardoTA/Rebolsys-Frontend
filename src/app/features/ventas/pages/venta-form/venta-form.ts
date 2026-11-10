@@ -1,15 +1,30 @@
 import { VentaCarrito } from "../../components/venta-carrito/venta-carrito";
-import { Component, inject, signal, computed, input } from "@angular/core";
+import { PermisosUi } from "../../../../core/services/permisos-ui";
+import {
+  Component,
+  DestroyRef,
+  inject,
+  signal,
+  computed,
+  input,
+} from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { FormsModule } from "@angular/forms";
-import { CurrencyPipe } from "@angular/common";
+import { CurrencyPipe, DatePipe } from "@angular/common";
 import { RouterLink, Router } from "@angular/router";
-import { forkJoin, of } from "rxjs";
+import { catchError, forkJoin, of } from "rxjs";
 import { ProductoService } from "../../../productos/services/producto-service";
 import { CategoriaService } from "../../../categorias/services/categoria-service";
 import { VentaService } from "../../services/venta-service";
 import { Producto } from "../../../productos/models/producto.model";
 import { Categoria } from "../../../categorias/models/categoria.model";
 import { Venta, VentaRequest, ReservaVenta } from "../../models/venta.model";
+import {
+  CobroReserva,
+  CuentaReserva,
+} from "../../../reservas/models/reserva-api.model";
+import { ReservaService } from "../../../reservas/services/reserva-service";
+import { coincideReserva } from "../../utils/buscar-reserva";
 import { mensajeError } from "../../../../core/utils/http-error";
 import { Icon } from "../../../../shared/components/icono/icono";
 import { PagoModal } from "../../../../shared/components/pago-modal/pago-modal";
@@ -20,6 +35,7 @@ import { VentaTicket } from "../../components/venta-ticket/venta-ticket";
   imports: [
     FormsModule,
     CurrencyPipe,
+    DatePipe,
     RouterLink,
     Icon,
     PagoModal,
@@ -31,18 +47,29 @@ import { VentaTicket } from "../../components/venta-ticket/venta-ticket";
   styleUrl: "./venta-form.css",
 })
 export class VentaForm {
+  readonly acceso = inject(PermisosUi);
   id = input<string>();
   original = signal<Venta | null>(null);
   private router = inject(Router);
   private productoService = inject(ProductoService);
   private categoriaService = inject(CategoriaService);
   private ventaService = inject(VentaService);
+  private reservaService = inject(ReservaService);
+  private destroy = inject(DestroyRef);
   productos = signal<Producto[]>([]);
   categorias = signal<Categoria[]>([]);
   reservas = signal<ReservaVenta[]>([]);
   carrito = signal<{ producto: Producto; cantidad: number }[]>([]);
   cargando = signal(true);
   error = signal("");
+  errorReservas = signal("");
+  cuentaReserva = signal<CuentaReserva | null>(null);
+  cargandoCuenta = signal(false);
+  errorCuenta = signal("");
+  ingresoAbierto = signal<ReservaVenta | null>(null);
+  errorIngreso = signal("");
+  private consultaCuenta = 0;
+  errorCatalogo = signal(false);
   guardando = signal(false);
   errorPago = signal("");
   pagoAbierto = signal(false);
@@ -57,6 +84,8 @@ export class VentaForm {
   compradorNombre = signal("");
   private clave = crypto.randomUUID();
   private solicitud: VentaRequest | null = null;
+  solicitudFijada = signal(false);
+  pendiente = computed(() => this.ventaService.pendiente?.() ?? null);
   seleccionada = computed(
     () =>
       this.reservas().find((r) => r.idDetalleReserva === this.reservaId()) ||
@@ -72,19 +101,7 @@ export class VentaForm {
     ),
   );
   reservasVisibles = computed(() =>
-    this.reservas().filter((r) =>
-      (
-        r.habitacion +
-        " " +
-        r.numero +
-        " " +
-        r.clienteNombre +
-        " " +
-        r.huespedes.join(" ")
-      )
-        .toLocaleLowerCase("es")
-        .includes(this.buscarHabitacion().trim().toLocaleLowerCase("es")),
-    ),
+    this.reservas().filter((r) => coincideReserva(r, this.buscarHabitacion())),
   );
   total = computed(
     () =>
@@ -103,10 +120,17 @@ export class VentaForm {
   cargar() {
     this.cargando.set(true);
     this.error.set("");
+    this.errorReservas.set("");
+    this.errorCatalogo.set(false);
     forkJoin({
       productos: this.productoService.catalogo(),
       categorias: this.categoriaService.listar(),
-      reservas: this.ventaService.reservas(),
+      reservas: this.ventaService.reservas().pipe(
+        catchError((e) => {
+          this.errorReservas.set(mensajeError(e));
+          return of([] as ReservaVenta[]);
+        }),
+      ),
       original: this.id() ? this.ventaService.obtener(this.id()!) : of(null),
     }).subscribe({
       next: (r) => {
@@ -132,7 +156,7 @@ export class VentaForm {
           this.productos.set(
             r.productos.map((p) => ({
               ...p,
-              stock: p.stock + (anteriores.get(p.idProducto)?.cantidad || 0),
+              stock: p.stock,
               precioActual:
                 anteriores.get(p.idProducto)?.precioUnitario ?? p.precioActual,
             })),
@@ -153,7 +177,9 @@ export class VentaForm {
                 }),
                 nombreProducto: d.nombreProducto,
                 precioActual: d.precioUnitario,
-                stock: d.stockRestante + d.cantidad,
+                stock:
+                  this.productos().find((p) => p.idProducto === d.idProducto)
+                    ?.stock ?? 0,
               },
             })),
           );
@@ -161,20 +187,102 @@ export class VentaForm {
         this.cargando.set(false);
       },
       error: (e) => {
+        this.errorCatalogo.set(true);
         this.error.set(mensajeError(e));
         this.cargando.set(false);
       },
     });
   }
   cambiarComprador(tipo: "EXTERNO" | "HOSPEDAJE") {
+    if (this.guardando() || this.solicitudFijada() || this.pendiente()) return;
     this.tipoComprador.set(tipo);
     this.reservaId.set(null);
     this.compradorNombre.set("");
     this.modoVenta.set(tipo === "EXTERNO" ? "SEPARADA" : "CARGO_RESERVA");
+    this.buscarHabitacion.set("");
+    this.consultarCuenta();
   }
   elegirReserva(id: number | null) {
+    if (this.guardando() || this.solicitudFijada() || this.pendiente()) return;
     this.reservaId.set(id);
     this.compradorNombre.set(this.seleccionada()?.clienteNombre || "");
+    this.modoVenta.set("CARGO_RESERVA");
+    this.consultarCuenta();
+  }
+  consultarCuenta() {
+    const consulta = ++this.consultaCuenta;
+    const r = this.seleccionada();
+    this.cuentaReserva.set(null);
+    this.errorCuenta.set("");
+    this.cargandoCuenta.set(!!r);
+    if (!r) return;
+    this.reservaService
+      .cuenta(r.idReserva)
+      .pipe(takeUntilDestroyed(this.destroy))
+      .subscribe({
+        next: (cuenta) => {
+          if (consulta !== this.consultaCuenta) return;
+          this.cuentaReserva.set(cuenta);
+          this.cargandoCuenta.set(false);
+          if (!cuenta.admiteConsumosConsolidados)
+            this.modoVenta.set("SEPARADA");
+        },
+        error: (e) => {
+          if (consulta !== this.consultaCuenta) return;
+          this.errorCuenta.set(mensajeError(e));
+          this.cargandoCuenta.set(false);
+        },
+      });
+  }
+  abrirIngreso() {
+    const r = this.seleccionada();
+    if (
+      !r ||
+      r.estadoDetalle !== "CONFIRMADA" ||
+      this.guardando() ||
+      this.solicitudFijada() ||
+      this.pendiente()
+    )
+      return;
+    this.errorIngreso.set("");
+    this.ingresoAbierto.set(r);
+  }
+  cerrarIngreso() {
+    if (!this.guardando()) this.ingresoAbierto.set(null);
+  }
+  registrarIngreso() {
+    const r = this.ingresoAbierto();
+    if (!r || this.guardando()) return;
+    this.guardando.set(true);
+    this.errorIngreso.set("");
+    this.reservaService
+      .ingresar(r.idDetalleReserva)
+      .pipe(takeUntilDestroyed(this.destroy))
+      .subscribe({
+        next: (detalle) => {
+          this.reservas.update((lista) =>
+            lista.map((actual) =>
+              actual.idDetalleReserva === detalle.idDetalleReserva
+                ? {
+                    ...actual,
+                    estadoDetalle: detalle.estadoDetalle,
+                    fechaIngreso: detalle.fechaIngreso,
+                    fechaSalida: detalle.fechaSalida,
+                    huespedes: detalle.ocupantes.map((o) => o.nombre),
+                  }
+                : actual,
+            ),
+          );
+          this.guardando.set(false);
+          this.ingresoAbierto.set(null);
+          this.error.set("");
+          this.consultarCuenta();
+        },
+        error: (e) => {
+          this.guardando.set(false);
+          this.errorIngreso.set(mensajeError(e));
+        },
+      });
   }
   cantidad(id: number) {
     return (
@@ -182,7 +290,13 @@ export class VentaForm {
     );
   }
   agregar(p: Producto) {
-    if (this.guardando() || this.cantidad(p.idProducto) >= p.stock) return;
+    if (
+      this.guardando() ||
+      this.solicitudFijada() ||
+      this.pendiente() ||
+      this.cantidad(p.idProducto) >= p.stock
+    )
+      return;
     const original = this.original()?.detalles.find(
       (d) => d.idProducto === p.idProducto,
     );
@@ -206,6 +320,7 @@ export class VentaForm {
     );
   }
   restar(id: number) {
+    if (this.guardando() || this.solicitudFijada() || this.pendiente()) return;
     this.carrito.update((items) =>
       items
         .map((l) =>
@@ -215,6 +330,7 @@ export class VentaForm {
     );
   }
   quitar(id: number) {
+    if (this.guardando() || this.solicitudFijada() || this.pendiente()) return;
     this.carrito.update((items) =>
       items.filter((l) => l.producto.idProducto !== id),
     );
@@ -228,6 +344,15 @@ export class VentaForm {
     this.fallidas.update((actual) => new Set([...actual, id]));
   }
   confirmarVenta() {
+    if (this.guardando()) return;
+    if (this.solicitudFijada() && this.solicitud) {
+      this.registrar(this.solicitud.efectivoRecibido, this.solicitud.cobro);
+      return;
+    }
+    if (this.pendiente()) {
+      this.error.set("Recupera la venta pendiente antes de registrar otra.");
+      return;
+    }
     this.error.set("");
     if (!this.carrito().length) {
       this.error.set("Agrega al menos un producto al carrito.");
@@ -244,6 +369,29 @@ export class VentaForm {
     if (this.compradorNombre().trim().length > 200) {
       this.error.set("El nombre del comprador admite hasta 200 caracteres.");
       return;
+    }
+    if (!this.id() && this.tipoComprador() === "HOSPEDAJE") {
+      if (this.seleccionada()?.estadoDetalle !== "EN_CURSO") {
+        this.error.set(
+          "Registra primero el ingreso de esta habitación para añadir consumos a la reserva o cobrarle una venta aparte.",
+        );
+        return;
+      }
+      if (this.cargandoCuenta() || !this.cuentaReserva()) {
+        this.error.set(
+          "Consulta la cuenta de la reserva antes de confirmar la venta.",
+        );
+        return;
+      }
+      if (
+        this.modoVenta() === "CARGO_RESERVA" &&
+        !this.cuentaReserva()!.admiteConsumosConsolidados
+      ) {
+        this.error.set(
+          "La cuenta de la reserva ya está pagada o emitida. Selecciona cobrar aparte.",
+        );
+        return;
+      }
     }
     if (this.id()) {
       if (!this.original()?.editable || this.guardando()) return;
@@ -276,9 +424,9 @@ export class VentaForm {
     this.solicitud = {
       claveRegistro: this.clave,
       modoVenta: cargo ? "CARGO_RESERVA" : "SEPARADA",
-      idDetalleReserva: cargo ? r!.idDetalleReserva : null,
+      idDetalleReserva: r?.idDetalleReserva ?? null,
       idCliente:
-        !cargo && r && this.compradorNombre().trim() === r.clienteNombre
+        r && this.compradorNombre().trim() === r.clienteNombre
           ? r.idCliente
           : null,
       compradorNombre: this.compradorNombre().trim() || null,
@@ -296,30 +444,73 @@ export class VentaForm {
       this.pagoAbierto.set(true);
     }
   }
-  registrar(recibido: number | null) {
+  registrar(recibido: number | null, cobro?: CobroReserva) {
     if (!this.solicitud || this.guardando()) return;
     this.guardando.set(true);
+    if (!this.solicitudFijada())
+      this.solicitud = {
+        ...this.solicitud,
+        efectivoRecibido: recibido,
+        ...(cobro ? { cobro } : {}),
+      };
+    this.solicitudFijada.set(true);
     this.errorPago.set("");
-    this.ventaService
-      .registrar({ ...this.solicitud, efectivoRecibido: recibido })
-      .subscribe({
-        next: (v) => {
-          this.guardando.set(false);
-          this.pagoAbierto.set(false);
-          this.venta.set(v);
-          this.carrito.set([]);
-          this.clave = crypto.randomUUID();
-          this.solicitud = null;
-          this.productoService
-            .catalogo()
-            .subscribe({ next: (p) => this.productos.set(p) });
-        },
-        error: (e) => {
-          this.guardando.set(false);
-          if (this.pagoAbierto()) this.errorPago.set(mensajeError(e));
-          else this.error.set(mensajeError(e));
-        },
-      });
+    this.ventaService.registrar(this.solicitud).subscribe({
+      next: (v) => {
+        this.guardando.set(false);
+        this.pagoAbierto.set(false);
+        this.venta.set(v);
+        this.carrito.set([]);
+        this.clave = crypto.randomUUID();
+        this.solicitud = null;
+        this.solicitudFijada.set(false);
+        this.productoService
+          .catalogo()
+          .subscribe({ next: (p) => this.productos.set(p) });
+      },
+      error: (e) => {
+        this.guardando.set(false);
+        if (e.status >= 400 && e.status < 500 && !this.pendiente()?.idVenta) {
+          this.solicitudFijada.set(false);
+        }
+        const mensaje =
+          e instanceof Error && !("status" in e) ? e.message : mensajeError(e);
+        if (this.pagoAbierto()) this.errorPago.set(mensaje);
+        else this.error.set(mensaje);
+      },
+    });
+  }
+  cerrarPago() {
+    if (this.solicitudFijada()) {
+      this.errorPago.set(
+        "Recupera la confirmación de la misma venta antes de cerrar.",
+      );
+      return;
+    }
+    this.pagoAbierto.set(false);
+  }
+  recuperarVenta() {
+    if (this.guardando()) return;
+    this.guardando.set(true);
+    this.error.set("");
+    this.ventaService.recuperar().subscribe({
+      next: (v) => {
+        this.guardando.set(false);
+        this.solicitudFijada.set(false);
+        this.solicitud = null;
+        this.pagoAbierto.set(false);
+        this.venta.set(v);
+        this.carrito.set([]);
+        this.clave = crypto.randomUUID();
+        this.cargar();
+      },
+      error: (e) => {
+        this.guardando.set(false);
+        this.error.set(
+          e instanceof Error && !("status" in e) ? e.message : mensajeError(e),
+        );
+      },
+    });
   }
   nuevaVenta() {
     this.venta.set(null);

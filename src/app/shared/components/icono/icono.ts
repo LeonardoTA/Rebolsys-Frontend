@@ -7,7 +7,7 @@ import { Component, input } from '@angular/core';
 export class Icon {
   name = input('bed');
   paths: Record<string, string> = {
-    settings: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M12 2v3 M12 19v3 M2 12h3 M19 12h3 M5 5l2 2 M17 17l2 2 M5 19l2-2 M17 7l2-2',
+    settings: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M10 3h4l1 3 3 1 3 3v4l-3 1-1 3-3 3h-4l-1-3-3-1-3-3v-4l3-1 1-3z',
     cart: 'M3 4h3l3 12h10l3-9H7 M10 21h.01 M18 21h.01',
     box: 'm3 7 9-4 9 4v10l-9 4-9-4z M3 7l9 5 9-5 M12 12v9 M8 5l9 5',
     bag: 'M5 7h14l2 14H3z M9 8V5a3 3 0 0 1 6 0v3',
@@ -22,6 +22,12 @@ export class Icon {
     edit: 'm15 4 5 5 M4 20l1-6L17 2l5 5L10 19z',
     close: 'm6 6 12 12 M18 6 6 18',
     check: 'm5 12 4 4L19 6',
+    user: 'M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M4 21v-2a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v2z',
+    lock: 'M5 10h14v11H5z M8 10V7a4 4 0 0 1 8 0v3 M12 14v3',
+    'shield-check': 'M12 2 4 5v6c0 5 3 8 8 11 5-3 8-6 8-11V5z M8 12l3 3 5-5',
+    eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
+    'eye-off': 'm3 3 18 18 M10 5a10 10 0 0 1 2 0c6 0 10 7 10 7a19 19 0 0 1-3 3 M6 6a19 19 0 0 0-4 6s4 7 10 7a11 11 0 0 0 5-1',
+    'arrow-right': 'M5 12h14m-6-6 6 6-6 6',
     receipt: 'M6 3h12v18l-3-2-3 2-3-2-3 2z M9 7h6 M9 11h6 M9 15h3',
     wallet: 'M3 6h17v14H3z M3 6l14-3v3 M15 11h6v5h-6z',
     users:

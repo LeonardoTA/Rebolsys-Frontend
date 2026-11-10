@@ -1,0 +1,116 @@
+<main class="marco-acceso" [class.modo-cambio]="cambio">
+  <div class="marca">
+    <img src="images/logo-real-bolognesi.png" alt="Hospedaje Real Bolognesi" />
+  </div>
+
+  <section class="tarjeta-acceso" aria-labelledby="titulo-acceso">
+    <p class="rotulo">Panel de control</p>
+
+    @if (ayuda()) {
+      <div class="contenido">
+        <header>
+          <h1 id="titulo-acceso">Recuperar acceso</h1>
+          <p>Solicita al gerente del hospedaje una nueva contraseña temporal para tu cuenta.</p>
+        </header>
+        <p class="aviso">Cuando la recibas, vuelve a iniciar sesión. El sistema te pedirá que elijas una contraseña nueva.</p>
+        <button type="button" class="button primaria" (click)="cambiarAyuda(false)">Volver al inicio de sesión</button>
+      </div>
+    } @else {
+      <form class="contenido" #formulario="ngForm" (ngSubmit)="enviar()">
+        <header>
+          <h1 id="titulo-acceso">{{ cambio ? 'Cambiar contraseña' : 'Bienvenido' }}</h1>
+          <p>{{ cambio ? 'Elige una contraseña para tu cuenta.' : 'Ingrese sus credenciales para acceder al sistema.' }}</p>
+        </header>
+
+        @if (cambio && temporal()) {
+          <div class="aviso">
+            <strong>Contraseña temporal detectada</strong>
+            <p>Establece una contraseña permanente antes de entrar al sistema.</p>
+          </div>
+        }
+
+        @if (!cambio) {
+          <div class="campo">
+            <label for="acceso-usuario"><app-icon name="user" />Usuario</label>
+            <input id="acceso-usuario" name="usuario" [(ngModel)]="usuario"
+              autocomplete="username" autocapitalize="none" spellcheck="false"
+              maxlength="50" placeholder="ejem_123" required />
+          </div>
+        }
+
+        <div class="campo">
+          <label for="acceso-clave"><app-icon name="lock" />
+            {{ cambio ? (temporal() ? 'Contraseña temporal' : 'Contraseña actual') : 'Contraseña' }}
+          </label>
+          <div class="campo-clave">
+            <input id="acceso-clave" [type]="mostrarActual() ? 'text' : 'password'" name="contrasena"
+              [(ngModel)]="contrasena" autocomplete="current-password" maxlength="128"
+              [placeholder]="cambio ? 'Ingresa tu contraseña' : '••••••••'" required />
+            <button type="button" class="visibilidad" [attr.aria-label]="mostrarActual() ? 'Ocultar contraseña actual' : 'Mostrar contraseña actual'"
+              [attr.aria-pressed]="mostrarActual()" (click)="mostrarActual.set(!mostrarActual())">
+              <app-icon [name]="mostrarActual() ? 'eye-off' : 'eye'" />
+            </button>
+          </div>
+        </div>
+
+        @if (cambio) {
+          <div class="campo">
+            <label for="acceso-nueva"><app-icon name="lock" />Nueva contraseña</label>
+            <div class="campo-clave">
+              <input id="acceso-nueva" [type]="mostrarNueva() ? 'text' : 'password'" name="nueva"
+                [(ngModel)]="nueva" autocomplete="new-password" maxlength="128"
+                aria-describedby="requisitos-acceso" placeholder="Escribe tu nueva contraseña" required />
+              <button type="button" class="visibilidad" [attr.aria-label]="mostrarNueva() ? 'Ocultar nueva contraseña' : 'Mostrar nueva contraseña'"
+                [attr.aria-pressed]="mostrarNueva()" (click)="mostrarNueva.set(!mostrarNueva())">
+                <app-icon [name]="mostrarNueva() ? 'eye-off' : 'eye'" />
+              </button>
+            </div>
+          </div>
+          <div class="campo">
+            <label for="acceso-confirmar"><app-icon name="lock" />Confirmar nueva contraseña</label>
+            <div class="campo-clave">
+              <input id="acceso-confirmar" [type]="mostrarConfirmacion() ? 'text' : 'password'" name="confirmar"
+                [(ngModel)]="confirmar" autocomplete="new-password" maxlength="128"
+                aria-describedby="requisitos-acceso" placeholder="Repite tu nueva contraseña" required />
+              <button type="button" class="visibilidad" [attr.aria-label]="mostrarConfirmacion() ? 'Ocultar confirmación' : 'Mostrar confirmación'"
+                [attr.aria-pressed]="mostrarConfirmacion()" (click)="mostrarConfirmacion.set(!mostrarConfirmacion())">
+                <app-icon [name]="mostrarConfirmacion() ? 'eye-off' : 'eye'" />
+              </button>
+            </div>
+          </div>
+          <ul id="requisitos-acceso" class="requisitos">
+            <li [class.cumple]="longitudValida"><span aria-hidden="true">{{ longitudValida ? '✓' : '○' }}</span> Mínimo 15 caracteres</li>
+            <li [class.cumple]="bytesValidos"><span aria-hidden="true">{{ bytesValidos ? '✓' : '○' }}</span> Máximo 72 bytes</li>
+            <li [class.cumple]="coinciden"><span aria-hidden="true">{{ coinciden ? '✓' : '○' }}</span> Las contraseñas coinciden</li>
+          </ul>
+        } @else {
+          <div class="opciones">
+            <label for="acceso-recordar">
+              <input id="acceso-recordar" type="checkbox" name="recordar"
+                aria-label="Recordar mi usuario" [ngModel]="recordar" (ngModelChange)="cambiarRecordatorio($event)" /> Recordarme
+            </label>
+            <button type="button" class="enlace" [disabled]="cargando()" (click)="cambiarAyuda(true)">¿Olvidaste tu contraseña?</button>
+          </div>
+        }
+
+        @if (error()) { <p class="error-acceso" role="alert">{{ error() }}</p> }
+        <button class="button primaria" type="submit"
+          [disabled]="cargando() || (cambio && (formulario.invalid || !longitudValida || !bytesValidos || !coinciden))">
+          {{ cargando() ? 'Procesando…' : (cambio ? 'Actualizar contraseña y entrar' : 'Ingresar') }}
+          @if (!cargando()) { <app-icon name="arrow-right" /> }
+        </button>
+        @if (cambio) {
+          <button class="button secundaria" type="button" [disabled]="cargando()" (click)="salir()">Cancelar y volver al inicio de sesión</button>
+        }
+      </form>
+    }
+
+    @if (!cambio && !ayuda()) {
+      <footer class="pie-acceso">
+        <p class="conexion"><app-icon name="shield-check" /> {{ conexionHttps ? 'Conexión segura' : 'Acceso local' }}</p>
+        <p>¿Problemas técnicos? Contacte al <button type="button" class="enlace soporte" [disabled]="cargando()"
+          (click)="cambiarAyuda(true)">Soporte de IT</button></p>
+      </footer>
+    }
+  </section>
+</main>

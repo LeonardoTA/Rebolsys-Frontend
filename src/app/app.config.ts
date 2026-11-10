@@ -1,5 +1,7 @@
 import { ApplicationConfig, LOCALE_ID } from '@angular/core';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient,withInterceptors } from '@angular/common/http';
+import { sesionInterceptor } from './core/services/sesion-interceptor';
+import { proteccionSesionInterceptor } from './core/services/proteccion-sesion-interceptor';
 import {
   provideRouter,
   withComponentInputBinding,
@@ -9,7 +11,7 @@ import { routes } from './app.routes';
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideHttpClient(),
+    provideHttpClient(withInterceptors([sesionInterceptor, proteccionSesionInterceptor])),
     provideRouter(
       routes,
       withComponentInputBinding(),

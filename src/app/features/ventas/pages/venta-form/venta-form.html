@@ -1,17 +1,29 @@
 <div class="shop-heading no-print">
   <div>
     <p class="eyebrow">TIENDITA DEL HOSPEDAJE</p>
-    <h2>{{ id() ? 'Editar venta pendiente' : 'Registrar venta' }}</h2>
+    <h2>{{ id() ? 'Editar venta pendiente' : 'Venta de productos' }}</h2>
   </div>
   <div>
-    <a routerLink="/ventas/historial" class="button"
-      ><app-icon name="receipt" />Historial</a
-    ><a routerLink="/productos" class="button"
-      ><app-icon name="box" />Productos</a
-    >
+    @if (acceso.permite('VENTAS:VER')) {
+      <a routerLink="/ventas/historial" class="button"><app-icon name="receipt" />Ver historial</a>
+    }
+    @if (acceso.permite('PRODUCTOS:VER')) {
+      <a routerLink="/configuraciones/productos" class="button"><app-icon name="box" />Productos</a>
+    }
   </div>
 </div>
-@if (cargando()) {
+@if(pendiente();as p){
+<div class="inline-note no-print" role="status">
+  Hay una venta pendiente de confirmar {{p.idVenta?'#'+p.idVenta:''}}. Recupera
+  la misma operación para conservar la venta y su pago.<button
+    class="button small"
+    [disabled]="guardando()"
+    (click)="recuperarVenta()"
+  >
+    Recuperar venta pendiente
+  </button>
+</div>
+} @if (cargando()) {
 <div class="loading-state panel">Preparando la tienda…</div>
 } @else {
 <div class="shop-layout no-print">
@@ -48,15 +60,21 @@
           <app-icon name="users" />Cliente externo
         </button>
       </div>
-      @if (tipoComprador() === "HOSPEDAJE") {
+      @if (tipoComprador() === "HOSPEDAJE") { @if(errorReservas()){
+      <div class="error-box" role="alert">
+        No se pudieron consultar las estancias: {{errorReservas()}}
+        <button class="button small" (click)="cargar()">Reintentar</button>
+      </div>
+      }
       <div class="buyer-fields">
         <label class="field"
-          >Buscar habitación o reserva<input
+          >Buscar cliente, huésped o reserva<input
             [ngModel]="buscarHabitacion()"
             (ngModelChange)="buscarHabitacion.set($event)"
             placeholder="Ej. 202, nombre del cliente…" /></label
         ><label class="field"
           >Asignar a habitación<select
+            [disabled]="guardando() || solicitudFijada() || !!pendiente()"
             [ngModel]="reservaId()"
             (ngModelChange)="elegirReserva($event)"
           >
@@ -64,7 +82,8 @@
             @for (r of reservasVisibles(); track r.idDetalleReserva) {
             <option [ngValue]="r.idDetalleReserva">
               {{ r.habitacion }} · Reserva #{{ r.numero }} · {{ r.clienteNombre
-              }}
+              }} · {{ r.estadoDetalle === 'EN_CURSO' ? 'En curso' : 'Confirmada
+              · ingreso pendiente' }}
             </option>
             }
           </select></label
@@ -84,24 +103,69 @@
           </datalist></label
         ><label class="field"
           >Destino del cobro<select
+            [disabled]="cargandoCuenta() || !cuentaReserva() || guardando() || solicitudFijada() || !!pendiente()"
             [ngModel]="modoVenta()"
             (ngModelChange)="modoVenta.set($event)"
           >
-            <option value="CARGO_RESERVA">
+            <option
+              value="CARGO_RESERVA"
+              [disabled]="!cuentaReserva()?.admiteConsumosConsolidados"
+            >
               Añadir a la cuenta de la reserva
             </option>
             <option value="SEPARADA">Cobrar aparte y emitir comprobante</option>
           </select></label
         >
       </div>
-      @if (seleccionada(); as r) {
+      @if (!errorReservas() && !reservasVisibles().length) {
+      <p class="buyer-note" role="status">
+        {{ buscarHabitacion().trim() ? 'No hay reservas confirmadas o en curso
+        que coincidan con la búsqueda.' : 'No hay reservas confirmadas ni
+        estancias en curso.' }}
+      </p>
+      } @if (seleccionada(); as r) {
+      <p class="buyer-note">
+        Habitación {{ r.habitacion }} · {{ r.fechaIngreso | date:'dd/MM/yyyy
+        HH:mm' }} – {{ r.fechaSalida | date:'dd/MM/yyyy HH:mm' }}
+      </p>
+      @if (r.estadoDetalle === 'CONFIRMADA') {
+      <div class="inline-note" role="status">
+        La reserva está confirmada. Registra el ingreso de esta habitación para
+        habilitar sus consumos.
+        <button
+          class="button small"
+          [disabled]="guardando() || solicitudFijada() || !!pendiente()"
+          (click)="abrirIngreso()"
+        >
+          Registrar ingreso
+        </button>
+      </div>
+      } @if (cargandoCuenta()) {
+      <p class="buyer-note" role="status">
+        Consultando la cuenta de la reserva…
+      </p>
+      } @else if (errorCuenta()) {
+      <div class="error-box" role="alert">
+        No se pudo consultar la cuenta: {{ errorCuenta() }}
+        <button class="button small" (click)="consultarCuenta()">
+          Reintentar
+        </button>
+      </div>
+      } @else if (cuentaReserva(); as cuenta) { @if
+      (!cuenta.admiteConsumosConsolidados) {
+      <p class="buyer-note">
+        La cuenta de esta reserva ya está pagada o tiene comprobante. Los nuevos
+        consumos se cobran aparte y conservan la referencia a la reserva #{{
+        r.numero }}.
+      </p>
+      }
       <p class="buyer-note">
         <app-icon name="info" />{{ modoVenta() === "CARGO_RESERVA" ? "El consumo
         quedará pendiente en la reserva #" + r.numero + ", a cargo de su
         titular." : "Esta venta tendrá pago y comprobante propios; no aumentará
         el saldo de la reserva." }}
       </p>
-      } } @else {
+      } } } @else {
       <label class="field external-name"
         >Nombre para el ticket <span class="optional">Opcional</span
         ><input
@@ -142,7 +206,14 @@
       </div>
     </div>
     @if (error()) {
-    <div class="error-box" role="alert">{{ error() }}</div>
+    <div class="error-box" role="alert">
+      {{ error() }} @if(errorCatalogo()){<button
+        class="button small"
+        (click)="cargar()"
+      >
+        Reintentar carga</button
+      >}
+    </div>
     }
     <div class="product-grid">
       @for (p of visibles(); track p.idProducto) {
@@ -159,6 +230,9 @@
         <div class="product-copy">
           <h3>{{ p.nombreProducto }}</h3>
           <p>{{ p.categoriaNombre }}</p>
+          @if(p.descripcion){
+          <p class="product-description">{{p.descripcion}}</p>
+          }
           <div>
             <strong>{{ p.precioActual | currency: "PEN" : "S/ " }}</strong
             ><button
@@ -172,7 +246,7 @@
           </div>
         </div>
       </article>
-      } @empty {
+      } @empty { @if(!errorCatalogo()){
       <div class="empty-state empty-catalog">
         <app-icon name="box" />
         <h3>
@@ -183,11 +257,11 @@
           {{ productos().length ? "Prueba otra búsqueda o categoría." : "Agrega
           los productos de la tiendita para comenzar." }}
         </p>
-        <a routerLink="/productos/nuevo" class="button primary"
+        <a routerLink="/configuraciones/productos/nuevo" class="button primary"
           >Agregar producto</a
         >
       </div>
-      }
+      } }
     </div>
   </main>
   <app-venta-carrito
@@ -201,6 +275,46 @@
     (confirmar)="confirmarVenta()"
   />
 </div>
+} @if (ingresoAbierto(); as r) {
+<div class="modal-backdrop" (click)="cerrarIngreso()">
+  <section
+    class="modal"
+    appDialog
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="confirmar-ingreso"
+    (dialogEscape)="cerrarIngreso()"
+    (click)="$event.stopPropagation()"
+  >
+    <h2 id="confirmar-ingreso">Registrar ingreso</h2>
+    <p>Reserva #{{ r.numero }} · Habitación {{ r.habitacion }}</p>
+    <p>
+      {{ r.fechaIngreso | date:'dd/MM/yyyy HH:mm' }} – {{ r.fechaSalida |
+      date:'dd/MM/yyyy HH:mm' }}
+    </p>
+    <p>Ocupantes: {{ r.huespedes.join(', ') || 'Aún no registrados' }}</p>
+    <p>
+      Confirma cuando los ocupantes estén presentes. La habitación pasará a
+      ocupada y podrás registrar sus consumos. El saldo pendiente puede pagarse
+      al finalizar la estadía.
+    </p>
+    @if (errorIngreso()) {
+    <div class="error-box" role="alert">{{ errorIngreso() }}</div>
+    }
+    <div class="modal-actions">
+      <button class="button" [disabled]="guardando()" (click)="cerrarIngreso()">
+        Cancelar
+      </button>
+      <button
+        class="button primary"
+        [disabled]="guardando()"
+        (click)="registrarIngreso()"
+      >
+        {{ guardando() ? 'Registrando…' : 'Confirmar ingreso' }}
+      </button>
+    </div>
+  </section>
+</div>
 } @if (pagoAbierto()) {
 <app-pago-modal
   [total]="total()"
@@ -208,8 +322,9 @@
   [permiteParcial]="false"
   [ocupado]="guardando()"
   [error]="errorPago()"
-  (cerrar)="pagoAbierto.set(false)"
-  (confirmar)="registrar($event.recibido)"
+  [solicitudFijada]="solicitudFijada()"
+  (cerrar)="cerrarPago()"
+  (confirmar)="registrar($event.recibido,$event.cobro)"
 />
 } @if (venta(); as v) {
 <div class="modal-backdrop receipt-overlay" (click)="venta.set(null)">
@@ -230,9 +345,10 @@
         "Consumo añadido a la reserva" }}
       </h2>
       <p class="muted">
-        {{ v.modoVenta === "SEPARADA" ? "El pago en efectivo y el comprobante
-        interno quedaron registrados." : "El importe se añadió a la cuenta de la
-        habitación " + v.habitacion + ". No se registró un pago." }}
+        {{ v.modoVenta === "SEPARADA" ? "La venta y su pago quedaron
+        registrados. Puedes imprimir la constancia." : "El importe se añadió a
+        la cuenta de la habitación " + v.habitacion + ". No se registró un
+        pago." }}
       </p>
       <div class="stock-result">
         <app-icon name="box" />

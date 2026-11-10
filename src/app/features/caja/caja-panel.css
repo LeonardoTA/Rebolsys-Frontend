@@ -1,0 +1,17 @@
+:host { display: grid; gap: 1rem; min-width: 0; }
+h3 { margin: 0 0 0.25rem; }
+.acciones { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.caja-resumen .panel-toolbar { justify-content: space-between; flex-wrap: wrap; }
+.estado-turno { display: inline-block; padding: 0.2rem 0.55rem; border-radius: 999px; font-size: 0.75rem; background: #eeedf3; }
+.estado-turno.abierto { color: #176548; background: #ecf8f0; }
+.indicadores { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: 0.75rem; padding: 0 1.25rem 1.25rem; }
+.indicadores div { display: grid; gap: 0.4rem; background: var(--canvas); padding: 0.9rem; border-radius: 0.65rem; }
+.indicadores small { color: var(--muted); }
+.indicadores strong { font-size: 1.25rem; }
+.nota-caja { margin: 0.75rem 1.25rem; padding: 0.75rem; border-radius: 0.5rem; background: #fff5da; color: #704a00; }
+.modal-arqueo { width: 840px; }
+.modal-arqueo table { min-width: 31rem; }
+.modal-arqueo input { min-width: 7rem; }
+.modal-arqueo .nota-caja { margin-inline: 0; }
+.caja-campos { border: 0; padding: 0; margin: 0; min-width: 0; }
+.salida { color: #9a1515; }

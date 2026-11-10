@@ -1,0 +1,73 @@
+.buc02 { display: grid; gap: 1rem; min-width: 0; }
+.modulo-cabecera, .ficha-cabecera, .pie-tabla {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .9rem;
+}
+.modulo-cabecera { padding: 1rem 1.15rem; background: var(--paper); border: 1px solid var(--line); border-radius: .75rem; }
+.modulo-cabecera h2 { color: var(--azul); font-weight: 700; }
+.modulo-cabecera nav { display: flex; flex-wrap: wrap; gap: .35rem; }
+.modulo-cabecera nav button {
+  display: inline-flex; align-items: center; gap: .45rem; border: 0; border-radius: .45rem; padding: .55rem .8rem;
+  background: transparent; color: var(--azul); font-weight: 600;
+}
+.modulo-cabecera nav .activa { background: var(--azul); color: white; }
+.subtitulo { display: grid; gap: .25rem; }
+.subtitulo p, .ficha-cabecera p { color: var(--muted); }
+.filtros {
+  padding: .95rem 1rem; display: grid; gap: .8rem; align-items: end;
+  grid-template-columns: repeat(4, minmax(7rem, 1fr)) max-content;
+}
+label { display: grid; gap: .35rem; font-weight: 600; }
+input, select, textarea {
+  display: block; width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: .4rem;
+  background: var(--paper); color: var(--ink); font: inherit; padding: .5rem .65rem;
+}
+textarea { resize: vertical; }
+thead th { background: var(--azul); color: white; }
+td strong { color: var(--azul); }
+.table-scroll { min-width: 0; }
+.acciones, .acciones-final { display: flex; gap: .45rem; align-items: center; flex-wrap: wrap; }
+.acciones-final { justify-content: flex-end; padding-top: .4rem; }
+.estado {
+  display: inline-flex; align-items: center; border-radius: 99px; padding: .25rem .65rem;
+  font-size: .8rem; font-weight: 700; white-space: nowrap; background: #ededf3; color: #4a4659;
+}
+.estado.POR_LIMPIAR, .estado.POR_APROBAR, .estado.PENDIENTE { background: #ffe48d; color: #483606; }
+.estado.EN_LIMPIEZA, .estado.APROBADO, .estado.RESUELTO { background: #c9eef0; color: #084f58; }
+.estado.DANADO, .estado.FALTANTE, .estado.MANTENIMIENTO, .estado.REPARACION { background: #f7d8d8; color: #7e282b; }
+.estado.DISPONIBLE, .estado.BUENO { background: #d7efdc; color: #195832; }
+.estado.REPOSICION, .estado.OCUPADO, .estado.EN_REPARACION { background: #e7e1f8; color: #473781; }
+.vacio { text-align: center; color: var(--muted); padding: 1.7rem 1rem; }
+.ficha-cabecera { padding: 1rem 1.15rem; border-bottom: 1px solid var(--line); }
+.ficha-cabecera h3, h4 { color: var(--azul); }
+.ficha-cuerpo { display: grid; gap: .95rem; padding: 1rem 1.15rem; min-width: 0; }
+.ficha-cuerpo .table-scroll { border: 1px solid var(--line); border-radius: .5rem; }
+.ficha-cuerpo .table-scroll table { min-width: 32rem; }
+.resumen-asociados { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .8rem; }
+.resumen-asociados > div { padding: .8rem; border-radius: .45rem; background: #f4f3f9; }
+h4 { margin: 0 0 .25rem; font-size: .9rem; }
+.tabla-formulario textarea { min-width: 10rem; }
+.tabla-formulario td:last-child { min-width: 9rem; }
+.opciones-estado { display: flex; flex-wrap: wrap; gap: .3rem; min-width: 12rem; }
+.opcion-estado { background: #f0eef7; color: var(--azul); border: 1px solid transparent; border-radius: .4rem; padding: .3rem .5rem; font-size: .78rem; }
+.opcion-estado.seleccionada { color: white; background: var(--azul); }
+.opcion-estado.seleccionada:disabled { opacity: .8; }
+.nota { max-width: 24rem; overflow-wrap: anywhere; }
+.evidencia { display: inline-block; color: var(--azul); text-decoration: underline; font-weight: 600; }
+.cargar-foto { margin: .25rem 0; font-size: .8rem; }
+.cargar-foto input { font-size: .76rem; padding: .25rem; max-width: 14rem; }
+.requerida { display: block; color: #952d36; }
+.acento { background: #ffe48d; border-color: #e5bd55; color: #483606; font-weight: 700; }
+.nota-operativa, .aviso { padding: .7rem .85rem; border-radius: .45rem; background: #fff5d6; color: #59430b; }
+.aviso { display: flex; align-items: center; gap: .45rem; background: #dff4e7; color: #164a32; }
+.indicadores { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .85rem; }
+.indicadores article { display: grid; gap: .4rem; padding: 1rem; }
+.indicadores strong { font-size: 1.85rem; color: var(--azul); }
+.confirmacion { display: grid; gap: .85rem; }
+@media (max-width: 940px) {
+  .filtros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filtros .button { justify-self: start; }
+}
+@media (max-width: 450px) {
+  .filtros { grid-template-columns: 1fr; }
+  .modulo-cabecera nav button { padding: .45rem .55rem; }
+}

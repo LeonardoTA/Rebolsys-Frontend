@@ -1,0 +1,19 @@
+.field {
+  margin: 20px 0;
+}
+.modal-header h2 {
+  margin: 0;
+}
+.category-list {
+  max-height: 220px;
+  overflow-y: auto;
+  padding-left: 22px;
+  color: var(--muted);
+}
+li {
+  padding: 6px 0;
+  overflow-wrap: anywhere;
+}
+h3 {
+  margin-top: 24px;
+}

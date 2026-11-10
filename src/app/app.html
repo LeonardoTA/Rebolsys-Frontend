@@ -1,6 +1,6 @@
 <router-outlet />
 @if (avisos.actual(); as aviso) {
-  <div class="toast" [class.toast-error]="aviso.error" role="status">
+  <div class="toast" [class.toast-error]="aviso.error" [attr.role]="aviso.error ? 'alert' : 'status'">
     <app-icon [name]="aviso.error ? 'info' : 'check'" />
     <span>{{ aviso.texto }}</span>
     <button

@@ -28,7 +28,7 @@
 .detail-overview { display:grid; grid-template-columns:170px 1fr; gap:20px; padding:16px; border:1px solid var(--line); border-radius:10px; margin-bottom:24px; }
 .detail-stats-grid,.ajuste-stock-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:14px 0; }
 .stat-val { font-size:18px; color:var(--azul); }
-.movements-container,.detail-upload-section { margin-block:20px; }
+.movements-container { margin-block:20px; }
 .movements-header { margin-bottom:12px; }
 .empty-movements { padding:24px; background:var(--canvas); border-radius:8px; }
 .movements-table-wrap { max-height:240px; }
