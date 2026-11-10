@@ -32,3 +32,24 @@ export interface MobiliarioHabitacion {
   nombreTipo: string;
   estadoActualItem: string | null;
 }
+
+export type EstadoHabitacion =
+  'DISPONIBLE' | 'OCUPADO' | 'LIMPIEZA' | 'MANTENIMIENTO';
+
+export interface HabitacionConfiguracion {
+  idHabitacion: number;
+  numeroCuarto: string;
+  idTipoHabitacion: number;
+  nombreTipo: string;
+  estadoHabitacion: EstadoHabitacion;
+  capacidadPersonas: number;
+  plazasCama: number;
+  maxMenoresSinCama: number;
+  precioBase: number;
+  precioPorNoche?: number | null;
+}
+
+export type HabitacionConfiguracionRequest = Omit<
+  HabitacionConfiguracion,
+  'idHabitacion' | 'nombreTipo' | 'precioBase'
+>;

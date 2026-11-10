@@ -1,23 +1,31 @@
-import { Routes } from "@angular/router";
+import { Routes } from '@angular/router';
 export const CONFIGURACIONES_ROUTES: Routes = [
   {
-    path: "",
-    loadComponent: () => import("../mantenimiento/mantenimiento").then((m) => m.Mantenimiento),
+    path: '',
+    loadComponent: () =>
+      import('../mantenimiento/mantenimiento').then((m) => m.Mantenimiento),
     children: [
-      { path: "", pathMatch: "full", redirectTo: "habitaciones" },
+      { path: '', pathMatch: 'full', redirectTo: 'habitaciones' },
       {
-        path: "habitaciones",
-        data: { permisos: ["HABITACIONES:VER"] },
-        loadComponent: () => import("../mantenimiento/pages/habitaciones/habitaciones").then((m) => m.HabitacionMantenimiento),
+        path: 'habitaciones',
+        loadChildren: () =>
+          import('../habitaciones/habitaciones.routes').then(
+            (m) => m.HABITACIONES_CONFIGURACION_ROUTES,
+          ),
       },
       {
-        path: "mobiliario",
-        data: { permisos: ["MOBILIARIO:VER"] },
-        loadComponent: () => import("../mantenimiento/pages/inmobiliario/inmobiliario").then((m) => m.InmobiliarioMantenimiento),
+        path: 'mobiliario',
+        loadChildren: () =>
+          import('../inmobiliario/inmobiliario.routes').then(
+            (m) => m.INMOBILIARIO_ROUTES,
+          ),
       },
       {
-        path: "productos",
-        loadChildren: () => import("../productos/productos.routes").then((m) => m.PRODUCTOS_ROUTES),
+        path: 'productos',
+        loadChildren: () =>
+          import('../productos/productos.routes').then(
+            (m) => m.PRODUCTOS_ROUTES,
+          ),
       },
     ],
   },

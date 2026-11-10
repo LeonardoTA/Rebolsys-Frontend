@@ -1,0 +1,245 @@
+<section class="panel form-page">
+  @if (cargando()) {
+    <div class="loading-state">Cargando formulario…</div>
+  } @else if (error()) {
+    <div class="error-state" role="alert">
+      <p>{{ error() }}</p>
+      <button class="button" (click)="cargar()">Reintentar</button>
+    </div>
+  } @else {
+    <p class="eyebrow">
+      {{ modoEdicion() ? "EDICIÓN DE HABITACIÓN" : "NUEVO REGISTRO" }}
+    </p>
+    <h2 id="titulo-form-habitacion">
+      {{
+        modoEdicion()
+          ? "Editar habitación " + formNumero()
+          : "Registrar
+    habitación"
+      }}
+    </h2>
+    <p class="muted">
+      {{
+        modoEdicion()
+          ? "Actualiza los parámetros físicos y capacidad. No es
+    posible cambiar el estado si está ocupada."
+          : "Completa la configuración
+    física. Al elegir el tipo se preconfiguran las capacidades."
+      }}
+    </p>
+
+    <form (ngSubmit)="guardarHabitacion()" class="form-grid" novalidate>
+      <!-- Número de habitación (máx 10) -->
+      <label class="field">
+        Número de habitación
+        <span class="required" aria-hidden="true">*</span>
+        <input
+          type="text"
+          name="numeroCuarto"
+          maxlength="10"
+          [ngModel]="formNumero()"
+          (ngModelChange)="formNumero.set($event)"
+          [disabled]="formOcupado()"
+          placeholder="Ej. 101, 202-B"
+          required
+        />
+        <small class="muted">Máximo 10 caracteres alfanuméricos.</small>
+      </label>
+
+      <!-- Tipo de habitación -->
+      <label class="field">
+        Tipo de habitación
+        <span class="required" aria-hidden="true">*</span>
+        <select
+          name="idTipoHabitacion"
+          [ngModel]="formIdTipo()"
+          (ngModelChange)="onTipoChange($event)"
+          [disabled]="formOcupado()"
+          required
+        >
+          <option [ngValue]="null" disabled>Selecciona un tipo…</option>
+          @for (t of tipos(); track t.idTipoHabitacion) {
+            <option [ngValue]="t.idTipoHabitacion">
+              {{ t.nombreTipo }} (Máx. {{ t.capacidadMax }} pers. - S/
+              {{ t.precioBase | number: "1.2-2" }})
+            </option>
+          }
+        </select>
+        <small class="muted"
+          >Define el precio y la capacidad máxima admitida.</small
+        >
+      </label>
+
+      <!-- Tarifa base (Readonly) -->
+      <label class="field">
+        Tarifa base por noche
+        <input
+          type="text"
+          [value]="
+            tipoSeleccionado()
+              ? 'S/ ' + (precioBaseTipo() | number: '1.2-2')
+              : 'Selecciona un tipo'
+          "
+          readonly
+          disabled
+        />
+        <small class="muted"
+          >Precio de solo lectura determinado por el tipo seleccionado.</small
+        >
+      </label>
+
+      <label class="field">
+        Tarifa propia por noche (opcional)
+        <input
+          type="number"
+          name="precioPorNoche"
+          min="0"
+          max="99999999.99"
+          step="0.01"
+          [ngModel]="formPrecioPorNoche()"
+          (ngModelChange)="formPrecioPorNoche.set($event)"
+          [disabled]="formOcupado()"
+        />
+        <small class="muted">
+          {{
+            modoEdicion()
+              ? "Dejar en blanco conserva la tarifa actual."
+              : "Dejar
+        en blanco usa la tarifa del tipo."
+          }}
+          Cero indica tarifa pendiente.
+        </small>
+      </label>
+
+      <!-- Estado físico -->
+      <label class="field">
+        Estado físico
+        <span class="required" aria-hidden="true">*</span>
+        @if (esOcupado()) {
+          <input
+            type="text"
+            value="Ocupado (Estancia activa)"
+            readonly
+            disabled
+          />
+          <small class="occupied-warning">
+            Habitación ocupada por una estancia activa; su estado no se puede
+            alterar desde aquí.
+          </small>
+        } @else {
+          <select
+            name="estadoHabitacion"
+            [ngModel]="formEstado()"
+            (ngModelChange)="formEstado.set($event)"
+            [disabled]="formOcupado()"
+            required
+          >
+            <option value="DISPONIBLE">Disponible</option>
+            <option value="LIMPIEZA">Limpieza</option>
+            <option value="MANTENIMIENTO">
+              Mantenimiento (Retirada de reservas)
+            </option>
+          </select>
+          @if (modoEdicion() && estadoOriginal() === "MANTENIMIENTO") {
+            <small class="rehab-note">
+              Rehabilita la habitación cambiándola a Disponible o Limpieza para
+              devolverla a la oferta.
+            </small>
+          } @else {
+            <small class="muted"
+              >Selecciona el estado operativo inicial de la habitación.</small
+            >
+          }
+        }
+      </label>
+
+      <!-- Capacidad total de personas (1..99 limitada al tipo) -->
+      <label class="field">
+        Capacidad de personas
+        <span class="required" aria-hidden="true">*</span>
+        <input
+          type="number"
+          name="capacidadPersonas"
+          min="1"
+          [max]="capacidadMaximaTipo()"
+          [ngModel]="formCapacidad()"
+          (ngModelChange)="onCapacidadChange($event)"
+          [disabled]="formOcupado() || !tipoSeleccionado()"
+          required
+        />
+        <small class="muted">
+          1 a {{ capacidadMaximaTipo() }} personas (limitado al máximo del tipo
+          elegido).
+        </small>
+      </label>
+
+      <!-- Plazas de cama (1..capacidad) -->
+      <label class="field">
+        Plazas de cama
+        <span class="required" aria-hidden="true">*</span>
+        <input
+          type="number"
+          name="plazasCama"
+          min="1"
+          [max]="formCapacidad()"
+          [ngModel]="formPlazasCama()"
+          (ngModelChange)="onPlazasChange($event)"
+          [disabled]="formOcupado()"
+          required
+        />
+        <small class="muted">
+          1 a {{ formCapacidad() }} plazas de cama para huéspedes. No confundir
+          con muebles.
+        </small>
+      </label>
+
+      <!-- Menores sin cama (0..capacidad-1) -->
+      <label class="field span-2">
+        Máximo de menores sin cama adicionales
+        <span class="required" aria-hidden="true">*</span>
+        <input
+          type="number"
+          name="maxMenoresSinCama"
+          min="0"
+          [max]="maximoMenoresSinCama()"
+          [ngModel]="formMenoresSinCama()"
+          (ngModelChange)="formMenoresSinCama.set(+$event)"
+          [disabled]="formOcupado() || maximoMenoresSinCama() === 0"
+          required
+        />
+        <small class="muted">
+          Hasta un menor de 7 años, dentro de la capacidad total.
+        </small>
+      </label>
+      <!-- Conflictos o errores del servidor -->
+      @if (formError()) {
+        <div class="span-2 error-box" role="alert">{{ formError() }}</div>
+      }
+
+      <div class="span-2 modal-actions">
+        <button
+          type="button"
+          class="button"
+          [disabled]="formOcupado()"
+          (click)="cancelar()"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          class="button primary"
+          [disabled]="formOcupado() || !formValido()"
+        >
+          {{
+            formOcupado()
+              ? "Guardando…"
+              : modoEdicion()
+                ? "Actualizar
+        habitación"
+                : "Registrar habitación"
+          }}
+        </button>
+      </div>
+    </form>
+  }
+</section>
