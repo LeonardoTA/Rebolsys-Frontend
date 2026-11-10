@@ -1,0 +1,269 @@
+<section class="panel form-page">
+  @if (cargando()) {
+    <div class="loading-state">Cargando formulario…</div>
+  } @else if (error()) {
+    <div class="error-state" role="alert">
+      <p>{{ error() }}</p>
+      <button class="button" (click)="cargar()">Reintentar</button>
+    </div>
+  } @else {
+    <div class="modal-header">
+      <div>
+        <h2 id="modal-registro-titulo">
+          {{
+            modoEdicion()
+              ? "Editar artículo #" + itemEnEdicion()?.idItem
+              : "Registrar unidad física"
+          }}
+        </h2>
+        <p class="muted">
+          {{
+            modoEdicion()
+              ? "Actualiza el nombre o tipo del artículo. Las
+        asignaciones y bajas se gestionan por sus operaciones específicas."
+              : "Registra un artículo a la vez con su tipo y ubicación inicial."
+          }}
+        </p>
+      </div>
+      <button
+        type="button"
+        class="icon-button"
+        [disabled]="registroOcupado()"
+        (click)="cancelar()"
+        aria-label="Volver al listado"
+      >
+        <app-icon name="close" />
+      </button>
+    </div>
+
+    @if (registroExitoParcial()) {
+      <div class="inline-note exito-parcial" role="status">
+        <app-icon name="check" />
+        <span>{{ registroExitoParcial() }}</span>
+      </div>
+    }
+    @if (registroError()) {
+      <p class="error-box" role="alert">{{ registroError() }}</p>
+    }
+
+    <form (ngSubmit)="guardarRegistro()" class="form-grid">
+      <div class="field span-2">
+        <label for="reg-nombre"
+          >Nombre del artículo <span class="required">*</span></label
+        >
+        <input
+          id="reg-nombre"
+          name="nombreItem"
+          [(ngModel)]="formNombreItem"
+          [disabled]="registroOcupado() || creadoIdItem() !== null"
+          maxlength="100"
+          placeholder="Ejemplo: Cama individual 01, Silla de madera, Televisor 32''"
+          required
+        />
+      </div>
+
+      <div class="field span-2">
+        <div class="label-with-action">
+          <label for="reg-tipo"
+            >Tipo de artículo <span class="required">*</span></label
+          >
+          @if (sesion.permite("MOBILIARIO:CREAR_TIPO")) {
+            <button
+              type="button"
+              class="text-button"
+              [disabled]="registroOcupado() || creadoIdItem() !== null"
+              (click)="abrirNuevoTipo()"
+            >
+              <app-icon name="plus" />Crear nuevo tipo
+            </button>
+          }
+        </div>
+        <select
+          id="reg-tipo"
+          name="idTipoItem"
+          [(ngModel)]="formIdTipoItem"
+          [disabled]="registroOcupado() || creadoIdItem() !== null"
+          required
+        >
+          <option [ngValue]="null">Selecciona un tipo...</option>
+          @for (t of tiposItem(); track t.idTipoItem) {
+            <option [ngValue]="t.idTipoItem">{{ t.nombreItem }}</option>
+          }
+        </select>
+      </div>
+
+      @if (!modoEdicion()) {
+        <div class="field span-2">
+          <label for="reg-destino"
+            >Destino inicial <span class="required">*</span></label
+          >
+          <select
+            id="reg-destino"
+            name="formDestino"
+            [(ngModel)]="formDestino"
+            [disabled]="registroOcupado() || creadoIdItem() !== null"
+          >
+            <option value="almacen">Sin asignar (Permanecer en almacén)</option>
+            @if (sesion.permite("MOBILIARIO:ASIGNAR")) {
+              <option value="habitacion">Asignar a una habitación</option>
+            }
+          </select>
+        </div>
+
+        @if (formDestino === "habitacion") {
+          <div class="field">
+            <label for="reg-habitacion"
+              >Habitación a asignar <span class="required">*</span></label
+            >
+            <select
+              id="reg-habitacion"
+              name="idHabitacion"
+              [(ngModel)]="formIdHabitacion"
+              [disabled]="registroOcupado()"
+              required
+            >
+              <option [ngValue]="null">Selecciona habitación...</option>
+              @for (h of habitaciones(); track h.idHabitacion) {
+                <option [ngValue]="h.idHabitacion">
+                  Habitación {{ h.numeroCuarto }} · {{ h.nombreTipo }}
+                </option>
+              }
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="reg-condicion"
+              >Condición inicial <span class="required">*</span></label
+            >
+            <select
+              id="reg-condicion"
+              name="estadoActualItem"
+              [(ngModel)]="formEstadoActualItem"
+              [disabled]="registroOcupado()"
+            >
+              <option value="BUENO">Bueno</option>
+              <option value="DANADO">Dañado</option>
+              <option value="FALTANTE">Perdido/faltante</option>
+              <option value="EN_REPARACION">En reparación</option>
+            </select>
+          </div>
+
+          <p class="muted span-2">
+            Responsable: {{ sesion.actual()?.usuario }}
+          </p>
+
+          <div class="field span-2">
+            <label for="reg-obs"
+              >Observación de la asignación
+              <span class="required">*</span></label
+            >
+            <input
+              id="reg-obs"
+              name="observacion"
+              [(ngModel)]="formObservacion"
+              [disabled]="registroOcupado()"
+              maxlength="180"
+              placeholder="Motivo de la asignación inicial (máx 180 caracteres)"
+              required
+            />
+          </div>
+        }
+      }
+
+      <div class="modal-actions span-2">
+        <button
+          type="button"
+          class="button"
+          [disabled]="registroOcupado()"
+          (click)="cancelar()"
+        >
+          Volver
+        </button>
+        <button
+          type="submit"
+          class="button primary"
+          [disabled]="registroOcupado()"
+        >
+          @if (creadoIdItem() !== null) {
+            Reintentar asignación
+          } @else if (modoEdicion()) {
+            Guardar cambios
+          } @else {
+            Registrar artículo
+          }
+        </button>
+      </div>
+    </form>
+  }
+</section>
+<!-- ================= MODAL 2: CREAR TIPO DE MOBILIARIO ================= -->
+@if (modalNuevoTipo()) {
+  <div class="modal-backdrop" (click)="cerrarModalNuevoTipo()">
+    <section
+      class="modal"
+      appDialog
+      (dialogEscape)="cerrarModalNuevoTipo()"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-tipo-titulo"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="modal-header">
+        <h2 id="modal-tipo-titulo">Crear tipo de mobiliario</h2>
+        <button
+          type="button"
+          class="icon-button"
+          [disabled]="nuevoTipoOcupado()"
+          (click)="cerrarModalNuevoTipo()"
+          aria-label="Cerrar tipo de mobiliario"
+        >
+          <app-icon name="close" />
+        </button>
+      </div>
+
+      <p class="muted">
+        Define una nueva categoría física para agrupar artículos (ejemplo: Cama,
+        Silla, Televisor).
+      </p>
+
+      @if (nuevoTipoError()) {
+        <p class="error-box" role="alert">{{ nuevoTipoError() }}</p>
+      }
+
+      <form (ngSubmit)="guardarNuevoTipo()">
+        <div class="field">
+          <label for="nuevo-tipo-nombre"
+            >Nombre del tipo <span class="required">*</span></label
+          >
+          <input
+            id="nuevo-tipo-nombre"
+            name="nombreTipo"
+            [(ngModel)]="nuevoTipoNombre"
+            [disabled]="nuevoTipoOcupado()"
+            maxlength="30"
+            placeholder="Ejemplo: Ventilador, Lámpara, Frigobar"
+            required
+          />
+        </div>
+
+        <div class="modal-actions">
+          <button
+            type="button"
+            class="button"
+            [disabled]="nuevoTipoOcupado()"
+            (click)="cerrarModalNuevoTipo()"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            class="button primary"
+            [disabled]="nuevoTipoOcupado()"
+          >
+            Crear tipo
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+}

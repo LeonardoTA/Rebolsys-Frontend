@@ -51,11 +51,15 @@ proxy.qa.json
 /postman/
 /.angular/
 /.vscode/
-**/*.spec.ts
-/tsconfig.spec.json
+
+
 .env
 .env.*
 !.env.example
 *.log
 *.bak
 *.zip
+
+/.work/
+/.local/
+**/*local-private*

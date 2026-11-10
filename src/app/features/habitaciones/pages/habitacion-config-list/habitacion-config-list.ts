@@ -1,100 +1,88 @@
-import { Component, OnInit, OnDestroy, computed, inject, signal } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { forkJoin, Subscription } from 'rxjs';
-import {
-  EstadoHabitacion,
-  HabitacionConfiguracion,
-  HabitacionConfiguracionRequest,
-  TipoHabitacion,
-  TipoHabitacionRequest,
-} from '../../models/mantenimiento.model';
-import { MantenimientoService } from '../../services/mantenimiento-service';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription, forkJoin } from 'rxjs';
 import { Pagina } from '../../../../core/models/pagina-response';
 import { NotificacionService } from '../../../../core/services/notificacion.service';
+import { PermisosUi } from '../../../../core/services/permisos-ui';
 import { mensajeError } from '../../../../core/utils/http-error';
 import { Icon } from '../../../../shared/components/icono/icono';
 import { DialogFocus } from '../../../../shared/directives/dialog-focus';
-import { PermisosUi } from '../../../../core/services/permisos-ui';
-
+import {
+  TipoHabitacion,
+  TipoHabitacionRequest,
+} from '../../../tipos-habitacion/models/tipo-habitacion.model';
+import { TipoHabitacionService } from '../../../tipos-habitacion/services/tipo-habitacion-service';
+import {
+  EstadoHabitacion,
+  HabitacionConfiguracion,
+} from '../../models/habitacion.model';
+import { HabitacionService } from '../../services/habitacion-service';
 @Component({
-  selector: 'app-habitaciones-mantenimiento',
-  standalone: true,
+  selector: 'app-habitacion-config-list',
   imports: [CommonModule, FormsModule, DecimalPipe, Icon, DialogFocus],
-  templateUrl: './habitaciones.html',
-  styleUrl: './habitaciones.css',
+  templateUrl: './habitacion-config-list.html',
+  styleUrl: './habitacion-config-list.css',
 })
-export class HabitacionMantenimiento implements OnInit, OnDestroy {
-  protected readonly acceso = inject(PermisosUi);
-  private readonly mantenimientoService = inject(MantenimientoService);
+export class HabitacionConfigList implements OnInit {
+  private readonly habitacionesService = inject(HabitacionService);
+  private readonly tiposService = inject(TipoHabitacionService);
   private readonly notificacionService = inject(NotificacionService);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  protected readonly acceso = inject(PermisosUi);
 
-  // --- Catálogo y filtros ---
   respuesta = signal<Pagina<HabitacionConfiguracion> | null>(null);
+
   tipos = signal<TipoHabitacion[]>([]);
+
   cargando = signal(true);
+
   error = signal('');
 
   buscar = signal('');
+
   filtroTipo = signal<number | null>(null);
+
   filtroEstado = signal<string>('');
+
   pagina = signal(0);
+
   tamanio = signal(12);
 
-  // --- Modal Consulta / Detalle ---
   detalleVisible = signal(false);
+
   habitacionDetalle = signal<HabitacionConfiguracion | null>(null);
+
   detalleCargando = signal(false);
+
   detalleError = signal('');
+
   private detallePeticion?: Subscription;
 
-  // --- Modal Formulario Habitación ---
-  formVisible = signal(false);
-  formOcupado = signal(false);
-  formError = signal('');
-  modoEdicion = signal(false);
-  idHabitacionEditando = signal<number | null>(null);
-
-  formNumero = signal('');
-  formIdTipo = signal<number | null>(null);
-  formCapacidad = signal(1);
-  formPlazasCama = signal(1);
-  formMenoresSinCama = signal(0);
-  formEstado = signal<EstadoHabitacion>('DISPONIBLE');
-  estadoOriginal = signal<EstadoHabitacion>('DISPONIBLE');
-  formPrecioPorNoche = signal<number | null>(null);
-
-  tipoSeleccionado = computed(() => {
-    const id = this.formIdTipo();
-    return this.tipos().find((t) => t.idTipoHabitacion === id) ?? null;
-  });
-
-  esOcupado = computed(() => {
-    return this.modoEdicion() && this.estadoOriginal() === 'OCUPADO';
-  });
-
-  capacidadMaximaTipo = computed(() => {
-    return this.tipoSeleccionado()?.capacidadMax ?? 99;
-  });
-
-  precioBaseTipo = computed(() => {
-    return this.tipoSeleccionado()?.precioBase ?? 0;
-  });
-
-  // --- Modal Retiro de Habitación ---
   retirandoVisible = signal(false);
+
   habitacionARetirar = signal<HabitacionConfiguracion | null>(null);
+
   retiroOcupado = signal(false);
+
   retiroError = signal('');
 
-  // --- Modal Gestión de Tipos de Habitación ---
   tiposModalVisible = signal(false);
+
   tipoEditandoId = signal<number | null>(null);
+
   tipoNombre = signal('');
+
   tipoCapacidadMax = signal(1);
+
   tipoPrecioBase = signal(0);
+
   tipoFormError = signal('');
+
   tipoFormOcupado = signal(false);
+
   tipoPorEliminar = signal<TipoHabitacion | null>(null);
 
   ngOnInit(): void {
@@ -105,14 +93,14 @@ export class HabitacionMantenimiento implements OnInit, OnDestroy {
     this.cargando.set(true);
     this.error.set('');
     forkJoin({
-      page: this.mantenimientoService.habitaciones({
+      page: this.habitacionesService.habitaciones({
         buscar: this.buscar().trim(),
         idTipoHabitacion: this.filtroTipo(),
         estado: this.filtroEstado() || null,
         pagina: this.pagina(),
         tamanio: this.tamanio(),
       }),
-      tipos: this.mantenimientoService.tiposHabitacion(),
+      tipos: this.tiposService.tiposHabitacion(),
     }).subscribe({
       next: ({ page, tipos }) => {
         this.respuesta.set(page);
@@ -136,7 +124,6 @@ export class HabitacionMantenimiento implements OnInit, OnDestroy {
     this.cargar();
   }
 
-  // --- Métodos de evaluación de estado y acciones ---
   puedeRetirar(room: HabitacionConfiguracion): boolean {
     if (room.estadoHabitacion === 'OCUPADO') return false;
     if (room.estadoHabitacion === 'MANTENIMIENTO') return false;
@@ -183,7 +170,6 @@ export class HabitacionMantenimiento implements OnInit, OnDestroy {
     }
   }
 
-  // --- Consultar Detalle ---
   abrirDetalle(room: HabitacionConfiguracion): void {
     this.habitacionDetalle.set(room);
     this.detalleVisible.set(true);
@@ -196,16 +182,18 @@ export class HabitacionMantenimiento implements OnInit, OnDestroy {
     this.detallePeticion?.unsubscribe();
     this.detalleCargando.set(true);
     this.detalleError.set('');
-    this.detallePeticion = this.mantenimientoService.habitacion(room.idHabitacion).subscribe({
-      next: (h) => {
-        this.habitacionDetalle.set(h);
-        this.detalleCargando.set(false);
-      },
-      error: (e) => {
-        this.detalleError.set(mensajeError(e));
-        this.detalleCargando.set(false);
-      },
-    });
+    this.detallePeticion = this.habitacionesService
+      .habitacion(room.idHabitacion)
+      .subscribe({
+        next: (h) => {
+          this.habitacionDetalle.set(h);
+          this.detalleCargando.set(false);
+        },
+        error: (e) => {
+          this.detalleError.set(mensajeError(e));
+          this.detalleCargando.set(false);
+        },
+      });
   }
 
   cerrarDetalle(): void {
@@ -220,154 +208,6 @@ export class HabitacionMantenimiento implements OnInit, OnDestroy {
     this.detallePeticion?.unsubscribe();
   }
 
-  // --- Modal Formulario Habitación ---
-  abrirCrear(): void {
-    this.modoEdicion.set(false);
-    this.idHabitacionEditando.set(null);
-    this.formNumero.set('');
-    const primerTipo = this.tipos()[0] ?? null;
-    this.formIdTipo.set(primerTipo ? primerTipo.idTipoHabitacion : null);
-    this.formCapacidad.set(primerTipo ? primerTipo.capacidadMax : 1);
-    this.formPlazasCama.set(primerTipo ? primerTipo.capacidadMax : 1);
-    this.formMenoresSinCama.set(0);
-    this.formEstado.set('DISPONIBLE');
-    this.estadoOriginal.set('DISPONIBLE');
-    this.formPrecioPorNoche.set(null);
-    this.formError.set('');
-    this.formVisible.set(true);
-  }
-
-  abrirEditar(room: HabitacionConfiguracion): void {
-    this.modoEdicion.set(true);
-    this.idHabitacionEditando.set(room.idHabitacion);
-    this.formNumero.set(room.numeroCuarto);
-    this.formIdTipo.set(room.idTipoHabitacion);
-    this.formCapacidad.set(room.capacidadPersonas);
-    this.formPlazasCama.set(room.plazasCama);
-    this.formMenoresSinCama.set(room.maxMenoresSinCama);
-    this.formEstado.set(room.estadoHabitacion);
-    this.estadoOriginal.set(room.estadoHabitacion);
-    this.formPrecioPorNoche.set(room.precioPorNoche ?? null);
-    this.formError.set('');
-    this.formVisible.set(true);
-  }
-
-  onTipoChange(nuevoId: number | null): void {
-    this.formIdTipo.set(nuevoId);
-    const tipo = this.tipos().find((t) => t.idTipoHabitacion === nuevoId);
-    if (tipo) {
-      if (!this.modoEdicion()) {
-        // Al crear, iniciar capacidad y plazas con el máximo del tipo y menores en 0
-        this.formCapacidad.set(tipo.capacidadMax);
-        this.formPlazasCama.set(tipo.capacidadMax);
-        this.formMenoresSinCama.set(0);
-      } else {
-        if (this.formCapacidad() > tipo.capacidadMax) {
-          this.formCapacidad.set(tipo.capacidadMax);
-        }
-        if (this.formPlazasCama() > this.formCapacidad()) {
-          this.formPlazasCama.set(this.formCapacidad());
-        }
-        const maxMenores = this.maximoMenoresSinCama();
-        if (this.formMenoresSinCama() > maxMenores) {
-          this.formMenoresSinCama.set(maxMenores);
-        }
-      }
-    }
-  }
-
-  onCapacidadChange(valor: number): void {
-    const tipo = this.tipoSeleccionado();
-    const max = tipo ? tipo.capacidadMax : 99;
-    let cap = Number(valor);
-    if (cap > max) cap = max;
-    if (!Number.isInteger(cap) || cap < 1) cap = 1;
-    this.formCapacidad.set(cap);
-
-    if (this.formPlazasCama() > cap) {
-      this.formPlazasCama.set(cap);
-    }
-    const maxMenores = this.maximoMenoresSinCama();
-    if (this.formMenoresSinCama() > maxMenores) {
-      this.formMenoresSinCama.set(maxMenores);
-    }
-  }
-
-  onPlazasChange(valor: number): void {
-    let plazas = Number(valor);
-    const cap = this.formCapacidad();
-    if (plazas > cap) plazas = cap;
-    if (plazas < 1) plazas = 1;
-    this.formPlazasCama.set(plazas);
-    this.formMenoresSinCama.update((menores) => Math.min(menores, this.maximoMenoresSinCama()));
-  }
-
-  maximoMenoresSinCama(): number {
-    return Math.min(1, Math.max(0, this.formCapacidad() - this.formPlazasCama()));
-  }
-
-  formValido(): boolean {
-    const num = this.formNumero().trim();
-    if (!num || num.length > 10) return false;
-    const idTipo = this.formIdTipo();
-    if (!idTipo) return false;
-    const tipo = this.tipoSeleccionado();
-    if (!tipo) return false;
-    const cap = this.formCapacidad();
-    if (!Number.isInteger(cap) || cap < 1 || cap > tipo.capacidadMax) return false;
-    const plazas = this.formPlazasCama();
-    if (!Number.isInteger(plazas) || plazas < 1 || plazas > cap) return false;
-    const menores = this.formMenoresSinCama();
-    if (!Number.isInteger(menores) || menores < 0 || menores > this.maximoMenoresSinCama())
-      return false;
-    const tarifa = this.formPrecioPorNoche();
-    if (tarifa !== null && (!/^\d+(\.\d{1,2})?$/.test(String(tarifa)) || tarifa > 99999999.99))
-      return false;
-    if (!this.formEstado()) return false;
-    return true;
-  }
-
-  guardarHabitacion(): void {
-    if (!this.formValido() || this.formOcupado()) return;
-    this.formOcupado.set(true);
-    this.formError.set('');
-
-    const req: HabitacionConfiguracionRequest = {
-      numeroCuarto: this.formNumero().trim(),
-      idTipoHabitacion: this.formIdTipo()!,
-      estadoHabitacion: this.esOcupado() ? 'OCUPADO' : this.formEstado(),
-      capacidadPersonas: this.formCapacidad(),
-      plazasCama: this.formPlazasCama(),
-      maxMenoresSinCama: this.formMenoresSinCama(),
-      precioPorNoche: this.formPrecioPorNoche(),
-    };
-
-    const id = this.modoEdicion() ? this.idHabitacionEditando() : null;
-    this.mantenimientoService.guardarHabitacion(id, req).subscribe({
-      next: () => {
-        this.formOcupado.set(false);
-        this.formVisible.set(false);
-        this.notificacionService.mostrar(
-          id
-            ? `Habitación ${req.numeroCuarto} actualizada con éxito.`
-            : `Habitación ${req.numeroCuarto} registrada con éxito.`,
-        );
-        this.cargar();
-      },
-      error: (err) => {
-        this.formOcupado.set(false);
-        this.formError.set(mensajeError(err));
-        // No cerrar modal en error ni perder los datos ingresados
-      },
-    });
-  }
-
-  cerrarFormModal(): void {
-    if (this.formOcupado()) return;
-    this.formVisible.set(false);
-  }
-
-  // --- Modal Retiro de Habitación ---
   abrirRetiro(room: HabitacionConfiguracion): void {
     if (!this.puedeRetirar(room)) return;
     this.habitacionARetirar.set(room);
@@ -389,7 +229,7 @@ export class HabitacionMantenimiento implements OnInit, OnDestroy {
     this.retiroError.set('');
 
     // PATCH a /habitaciones/{id}/estado con MANTENIMIENTO, NUNCA DELETE
-    this.mantenimientoService
+    this.habitacionesService
       .cambiarEstadoHabitacion(room.idHabitacion, 'MANTENIMIENTO')
       .subscribe({
         next: () => {
@@ -408,7 +248,6 @@ export class HabitacionMantenimiento implements OnInit, OnDestroy {
       });
   }
 
-  // --- Modal Tipos de Habitación ---
   abrirTiposModal(): void {
     this.tipoFormError.set('');
     this.cancelarEdicionTipo();
@@ -423,7 +262,7 @@ export class HabitacionMantenimiento implements OnInit, OnDestroy {
   }
 
   cargarTipos(): void {
-    this.mantenimientoService.tiposHabitacion().subscribe({
+    this.tiposService.tiposHabitacion().subscribe({
       next: (t) => this.tipos.set(t),
       error: (err) => this.tipoFormError.set(mensajeError(err)),
     });
@@ -467,12 +306,14 @@ export class HabitacionMantenimiento implements OnInit, OnDestroy {
     };
 
     const id = this.tipoEditandoId();
-    this.mantenimientoService.guardarTipoHabitacion(id, req).subscribe({
+    this.tiposService.guardarTipoHabitacion(id, req).subscribe({
       next: () => {
         this.tipoFormOcupado.set(false);
         this.cancelarEdicionTipo();
         this.notificacionService.mostrar(
-          id ? `Tipo ${req.nombreTipo} actualizado.` : `Tipo ${req.nombreTipo} registrado.`,
+          id
+            ? `Tipo ${req.nombreTipo} actualizado.`
+            : `Tipo ${req.nombreTipo} registrado.`,
         );
         this.cargarTipos();
         this.cargar();
@@ -496,7 +337,7 @@ export class HabitacionMantenimiento implements OnInit, OnDestroy {
     this.tipoFormOcupado.set(true);
     this.tipoFormError.set('');
 
-    this.mantenimientoService.eliminarTipoHabitacion(t.idTipoHabitacion).subscribe({
+    this.tiposService.eliminarTipoHabitacion(t.idTipoHabitacion).subscribe({
       next: () => {
         this.tipoFormOcupado.set(false);
         this.tipoPorEliminar.set(null);
@@ -509,6 +350,14 @@ export class HabitacionMantenimiento implements OnInit, OnDestroy {
         // Mostrar conflicto 409 o error del servidor sin cerrar el modal
         this.tipoFormError.set(mensajeError(err));
       },
+    });
+  }
+  abrirCrear(): void {
+    void this.router.navigate(['nuevo'], { relativeTo: this.route });
+  }
+  abrirEditar(room: HabitacionConfiguracion): void {
+    void this.router.navigate([room.idHabitacion, 'editar'], {
+      relativeTo: this.route,
     });
   }
 }

@@ -1,5 +1,11 @@
 # REBOLSYS Frontend
 
+## Aporte actualizado de James Tequen — iteración 2
+
+La rama **`iteracion2`** contiene el frontend de iteración 2 del equipo actualizado con la organización por entidad de Pharma para habitaciones y mobiliario. Esta es la rama que debe usarse para la entrega actual. Ver [resumen para presentar al grupo](entregables/PARA-PRESENTAR-ITERACION2.md) y [pruebas de la adaptación](entregables/PRUEBAS-REORGANIZACION-ITERACION2.md).
+
+Desde esta carpeta se puede ejecutar `.\iniciar-frontend.ps1` con la API en 8085, o `.\iniciar-frontend.ps1 -PuertoApi 8080` si el backend usa el puerto predeterminado de Maven. El script genera el proxy sin BOM y guarda cachés en la unidad del proyecto. Las pantallas están en `/configuraciones/habitaciones`, `/configuraciones/mobiliario` y `/configuraciones/productos`.
+
 Aplicación Angular para las reservas y la tienda del hospedaje Real Bolognesi.
 
 ## Ejecutar
@@ -130,6 +136,6 @@ Los datos provienen de Oracle a través de la API. Los mensajes de validación d
 
 `app.config.ts` configura los proveedores y `app.routes.ts` carga las rutas por funcionalidad. `layout` contiene la estructura principal; cada módulo en `features` separa `models`, `services`, `pages` y sus componentes. Cada pantalla conserva sus archivos TypeScript, HTML y CSS. `core` agrupa servicios y utilidades; `shared` reúne componentes y directivas comunes.
 
-La autenticación, pasarela de pagos, carga de imágenes y paso de facturación a producción se implementarán posteriormente. La versión está destinada al desarrollo local y a la facturación beta.
+La iteración 2 incluye autenticación y permisos por acción. La pasarela de pagos, carga de imágenes desde archivos y paso de facturación a producción permanecen fuera de esta reorganización. La versión está destinada al desarrollo local y a la facturación beta.
 
-Este repositorio contiene los archivos del sistema. Documentación de trabajo, Postman, pruebas, capturas, compilaciones y dependencias instaladas se mantienen fuera de Git.
+Este repositorio incluye las pruebas y los informes de la reorganización. Las credenciales, cachés, compilaciones y dependencias instaladas quedan excluidas de Git.

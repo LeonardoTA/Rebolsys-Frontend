@@ -1,128 +1,136 @@
+import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { DatePipe } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
-import { MantenimientoService } from '../../services/mantenimiento-service';
-import {
-  EstadoConservacion,
-  EstadoHabitacion,
-  EstadoItem,
-  FiltrosConfiguracion,
-  HabitacionConfiguracion,
-  Item,
-  ItemHistorial,
-  TipoItem,
-} from '../../models/mantenimiento.model';
-import { SesionService } from '../../../../core/services/sesion-service';
+import { FiltrosConsulta } from '../../../../core/models/filtros-consulta';
 import { Pagina } from '../../../../core/models/pagina-response';
 import { NotificacionService } from '../../../../core/services/notificacion.service';
+import { SesionService } from '../../../../core/services/sesion-service';
+import { generarClaveOperacion } from '../../../../core/utils/clave-operacion';
 import { mensajeError } from '../../../../core/utils/http-error';
 import { Icon } from '../../../../shared/components/icono/icono';
 import { DialogFocus } from '../../../../shared/directives/dialog-focus';
-
-export function generarClaveOperacion(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return 'op-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
-}
-
+import {
+  EstadoHabitacion,
+  HabitacionConfiguracion,
+} from '../../../habitaciones/models/habitacion.model';
+import { HabitacionService } from '../../../habitaciones/services/habitacion-service';
+import { TipoItem } from '../../../tipos-inmobiliario/models/tipo-item.model';
+import { TipoItemService } from '../../../tipos-inmobiliario/services/tipo-item-service';
+import {
+  EstadoConservacion,
+  EstadoItem,
+  Item,
+  ItemHistorial,
+} from '../../models/inmobiliario.model';
+import { InmobiliarioService } from '../../services/inmobiliario-service';
 @Component({
-  selector: 'app-inmobiliario-mantenimiento',
+  selector: 'app-inmobiliario-list',
   imports: [FormsModule, DatePipe, Icon, DialogFocus],
-  templateUrl: './inmobiliario.html',
-  styleUrl: './inmobiliario.css',
+  templateUrl: './inmobiliario-list.html',
+  styleUrl: './inmobiliario-list.css',
 })
-export class InmobiliarioMantenimiento implements OnInit {
+export class InmobiliarioList implements OnInit {
+  private readonly inmobiliarioService = inject(InmobiliarioService);
+  private readonly habitacionesService = inject(HabitacionService);
+  private readonly tiposService = inject(TipoItemService);
   protected readonly sesion = inject(SesionService);
-  private readonly mantenimiento = inject(MantenimientoService);
   private readonly avisos = inject(NotificacionService);
-
-  // Catálogos y datos
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   habitaciones = signal<HabitacionConfiguracion[]>([]);
+
   tiposItem = signal<TipoItem[]>([]);
+
   respuesta = signal<Pagina<Item> | null>(null);
 
-  // Estados de vista
   cargando = signal(true);
+
   error = signal('');
+
   habitacionSeleccionada = signal<HabitacionConfiguracion | null>(null);
 
-  // Filtros y paginación
   buscar = '';
+
   filtroTipo: number | null = null;
+
   filtroCondicion: EstadoConservacion | '' = '';
+
   filtroEstado: EstadoItem | '' = '';
+
   filtroHabitacion: number | 'todas' | 'sin_asignar' = 'todas';
+
   pagina = signal(0);
+
   tamanio = signal(10);
 
-  // Modal 1: Registrar / Editar unidad física
-  modalRegistro = signal(false);
-  modoEdicion = signal(false);
-  itemEnEdicion = signal<Item | null>(null);
-  creadoIdItem = signal<number | null>(null);
-  registroOcupado = signal(false);
-  registroError = signal('');
-  registroExitoParcial = signal('');
-  asignacionClaveOperacion = '';
-  lastAsignacionPayload = '';
-  formNombreItem = '';
-  formIdTipoItem: number | null = null;
-  formDestino: 'almacen' | 'habitacion' = 'almacen';
-  formIdHabitacion: number | null = null;
-  formEstadoActualItem: EstadoConservacion = 'BUENO';
-
-  formObservacion = '';
-
-  // Modal 2: Crear Tipo de Mobiliario (TipoItem)
-  modalNuevoTipo = signal(false);
-  nuevoTipoNombre = '';
-  nuevoTipoError = signal('');
-  nuevoTipoOcupado = signal(false);
-
-  // Modal 3: Asignar / Trasladar / Retirar
   modalAsignacion = signal(false);
+
   itemParaAsignar = signal<Item | null>(null);
-  tipoOperacionAsignacion = signal<'asignar' | 'trasladar' | 'retirar'>('asignar');
+
+  tipoOperacionAsignacion = signal<'asignar' | 'trasladar' | 'retirar'>(
+    'asignar',
+  );
+
   asigIdHabitacion: number | null = null;
+
   asigEstadoActualItem: EstadoConservacion = 'BUENO';
 
   asigObservacion = '';
+
   asigClaveOperacion = '';
+
   lastAsigPayload = '';
+
   asigError = signal('');
+
   asigOcupado = signal(false);
 
-  // Modal 4: Actualizar conservación
   modalConservacion = signal(false);
+
   itemParaConservar = signal<Item | null>(null);
+
   consEstadoActualItem: EstadoConservacion = 'BUENO';
 
   consObservacion = '';
+
   consClaveOperacion = '';
+
   lastConsPayload = '';
+
   consError = signal('');
+
   consOcupado = signal(false);
 
-  // Modal 5: Baja por daño o pérdida
   modalBaja = signal(false);
+
   itemParaBaja = signal<Item | null>(null);
+
   bajaCondicionFinal: 'DANADO' | 'FALTANTE' = 'DANADO';
 
   bajaObservacion = '';
+
   bajaClaveOperacion = '';
+
   lastBajaPayload = '';
+
   bajaRetiradoExitoso = signal(false);
+
   bajaPendienteDesactivacion = signal(false);
+
   bajaError = signal('');
+
   bajaOcupado = signal(false);
 
-  // Modal 6: Consultar Detalle e Historial
   modalDetalle = signal(false);
+
   itemDetalle = signal<Item | null>(null);
+
   historial = signal<ItemHistorial[]>([]);
+
   cargandoHistorial = signal(false);
+
   errorHistorial = signal('');
 
   ngOnInit(): void {
@@ -134,10 +142,13 @@ export class InmobiliarioMantenimiento implements OnInit {
     this.error.set('');
 
     forkJoin({
-      habitaciones: this.sesion.permite('HABITACIONES:VER', 'MOBILIARIO:ASIGNAR')
-        ? this.mantenimiento.habitacionesTodas()
+      habitaciones: this.sesion.permite(
+        'HABITACIONES:VER',
+        'MOBILIARIO:ASIGNAR',
+      )
+        ? this.habitacionesService.habitacionesTodas()
         : of([]),
-      tipos: this.mantenimiento.tiposItem(),
+      tipos: this.tiposService.tiposItem(),
     }).subscribe({
       next: (res) => {
         this.habitaciones.set(res.habitaciones || []);
@@ -155,7 +166,7 @@ export class InmobiliarioMantenimiento implements OnInit {
     this.cargando.set(true);
     this.error.set('');
 
-    const filtros: FiltrosConfiguracion = {
+    const filtros: FiltrosConsulta = {
       pagina: this.pagina(),
       tamanio: this.tamanio(),
       buscar: this.buscar.trim() || undefined,
@@ -169,13 +180,16 @@ export class InmobiliarioMantenimiento implements OnInit {
       this.habitacionSeleccionada.set(null);
     } else if (typeof this.filtroHabitacion === 'number') {
       filtros['idHabitacion'] = this.filtroHabitacion;
-      const hab = this.habitaciones().find((h) => h.idHabitacion === this.filtroHabitacion) || null;
+      const hab =
+        this.habitaciones().find(
+          (h) => h.idHabitacion === this.filtroHabitacion,
+        ) || null;
       this.habitacionSeleccionada.set(hab);
     } else {
       this.habitacionSeleccionada.set(null);
     }
 
-    this.mantenimiento.items(filtros).subscribe({
+    this.inmobiliarioService.items(filtros).subscribe({
       next: (page) => {
         this.respuesta.set(page);
         this.cargando.set(false);
@@ -218,238 +232,13 @@ export class InmobiliarioMantenimiento implements OnInit {
     }
   }
 
-  // --- Modal 1: Registro y Edición Básica ---
-  abrirRegistrar(): void {
-    this.formNombreItem = '';
-    this.formIdTipoItem = this.filtroTipo || (this.tiposItem()[0]?.idTipoItem ?? null);
-    if (typeof this.filtroHabitacion === 'number' && this.sesion.permite('MOBILIARIO:ASIGNAR')) {
-      this.formDestino = 'habitacion';
-      this.formIdHabitacion = this.filtroHabitacion;
-    } else {
-      this.formDestino = 'almacen';
-      this.formIdHabitacion = this.habitaciones()[0]?.idHabitacion ?? null;
-    }
-    this.formEstadoActualItem = 'BUENO';
-    this.formObservacion = '';
-    this.creadoIdItem.set(null);
-    this.registroExitoParcial.set('');
-    this.registroError.set('');
-    this.asignacionClaveOperacion = generarClaveOperacion();
-    this.lastAsignacionPayload = '';
-    this.modoEdicion.set(false);
-    this.itemEnEdicion.set(null);
-    this.modalRegistro.set(true);
-  }
-
-  abrirEditar(item: Item): void {
-    this.itemEnEdicion.set(item);
-    this.formNombreItem = item.nombreItem;
-    this.formIdTipoItem = item.idTipoItem;
-    this.creadoIdItem.set(null);
-    this.registroExitoParcial.set('');
-    this.registroError.set('');
-    this.modoEdicion.set(true);
-    this.modalRegistro.set(true);
-  }
-
-  cerrarModalRegistro(): void {
-    if (this.registroOcupado()) return;
-    this.modalRegistro.set(false);
-    this.itemEnEdicion.set(null);
-    this.creadoIdItem.set(null);
-    this.registroError.set('');
-    this.registroExitoParcial.set('');
-  }
-
-  guardarRegistro(): void {
-    if (this.registroOcupado()) return;
-
-    if (!this.formNombreItem.trim()) {
-      this.registroError.set('El nombre del artículo es obligatorio.');
-      return;
-    }
-    if (this.formNombreItem.trim().length > 100) {
-      this.registroError.set('El nombre del artículo no puede exceder 100 caracteres.');
-      return;
-    }
-    if (!this.formIdTipoItem) {
-      this.registroError.set('Selecciona un tipo de artículo.');
-      return;
-    }
-
-    if (this.modoEdicion()) {
-      const item = this.itemEnEdicion()!;
-      this.registroOcupado.set(true);
-      this.registroError.set('');
-      this.mantenimiento
-        .guardarItem(item.idItem, {
-          nombreItem: this.formNombreItem.trim(),
-          idTipoItem: this.formIdTipoItem,
-          estadoItem: item.estadoItem,
-        })
-        .subscribe({
-          next: () => {
-            this.registroOcupado.set(false);
-            this.cerrarModalRegistro();
-            this.avisos.mostrar('Artículo actualizado correctamente.');
-            this.cargar();
-          },
-          error: (e) => {
-            this.registroOcupado.set(false);
-            this.registroError.set(mensajeError(e));
-          },
-        });
-      return;
-    }
-
-    // Creación nueva
-    if (this.formDestino === 'habitacion') {
-      if (!this.formIdHabitacion) {
-        this.registroError.set('Selecciona la habitación a la que se asignará el artículo.');
-        return;
-      }
-      if (!this.sesion.actual()?.idUsuario) {
-        this.registroError.set('Inicia sesión para registrar la asignación.');
-        return;
-      }
-      if (!this.formObservacion.trim()) {
-        this.registroError.set('La observación es obligatoria al asignar una habitación.');
-        return;
-      }
-      if (this.formObservacion.trim().length > 180) {
-        this.registroError.set('La observación no puede exceder 180 caracteres.');
-        return;
-      }
-    }
-
-    this.registroOcupado.set(true);
-    this.registroError.set('');
-
-    // Si ya se creó en un intento anterior y falló la etapa de asignación:
-    if (this.creadoIdItem() !== null) {
-      this.ejecutarEtapaAsignacionPostAlta(this.creadoIdItem()!);
-      return;
-    }
-
-    // Etapa 1: Crear unidad en estado Activo
-    this.mantenimiento
-      .guardarItem(null, {
-        nombreItem: this.formNombreItem.trim(),
-        idTipoItem: this.formIdTipoItem,
-        estadoItem: 'Activo',
-      })
-      .subscribe({
-        next: (nuevoItem) => {
-          if (this.formDestino === 'almacen' || !this.formIdHabitacion) {
-            this.registroOcupado.set(false);
-            this.cerrarModalRegistro();
-            this.avisos.mostrar('Artículo registrado correctamente en almacén.');
-            this.cargar();
-          } else {
-            this.creadoIdItem.set(nuevoItem.idItem);
-            this.registroExitoParcial.set(
-              `Artículo #${nuevoItem.idItem} registrado con éxito en el sistema. Asignando a la habitación...`,
-            );
-            this.ejecutarEtapaAsignacionPostAlta(nuevoItem.idItem);
-          }
-        },
-        error: (e) => {
-          this.registroOcupado.set(false);
-          this.registroError.set(mensajeError(e));
-        },
-      });
-  }
-
-  private ejecutarEtapaAsignacionPostAlta(idItem: number): void {
-    const firmaPayload = JSON.stringify({
-      idItem,
-      h: this.formIdHabitacion,
-      u: this.sesion.actual()?.idUsuario,
-      c: this.formEstadoActualItem,
-      o: this.formObservacion.trim(),
-    });
-
-    if (this.lastAsignacionPayload && this.lastAsignacionPayload !== firmaPayload) {
-      this.asignacionClaveOperacion = generarClaveOperacion();
-    }
-    this.lastAsignacionPayload = firmaPayload;
-
-    this.mantenimiento
-      .asignarItem(idItem, {
-        claveOperacion: this.asignacionClaveOperacion,
-        idUsuario: this.sesion.actual()!.idUsuario,
-        idHabitacion: this.formIdHabitacion,
-        estadoActualItem: this.formEstadoActualItem,
-        observacion: this.formObservacion.trim(),
-      })
-      .subscribe({
-        next: () => {
-          this.registroOcupado.set(false);
-          this.cerrarModalRegistro();
-          this.avisos.mostrar('Artículo registrado y asignado a la habitación exitosamente.');
-          this.cargar();
-        },
-        error: (e) => {
-          this.registroOcupado.set(false);
-          this.registroExitoParcial.set(
-            `El artículo fue creado con éxito en el inventario (ID: #${idItem}), pero ocurrió un error al asignarlo a la habitación.`,
-          );
-          this.registroError.set(
-            `Error en la asignación: ${mensajeError(e)}. Puedes reintentar la asignación sin volver a crear la unidad.`,
-          );
-        },
-      });
-  }
-
-  // --- Modal 2: Crear Tipo de Mobiliario ---
-  abrirNuevoTipo(): void {
-    this.nuevoTipoNombre = '';
-    this.nuevoTipoError.set('');
-    this.modalNuevoTipo.set(true);
-  }
-
-  cerrarModalNuevoTipo(): void {
-    if (this.nuevoTipoOcupado()) return;
-    this.modalNuevoTipo.set(false);
-  }
-
-  guardarNuevoTipo(): void {
-    if (this.nuevoTipoOcupado()) return;
-    const nombre = this.nuevoTipoNombre.trim();
-    if (!nombre) {
-      this.nuevoTipoError.set('El nombre del tipo es obligatorio.');
-      return;
-    }
-    if (nombre.length > 30) {
-      this.nuevoTipoError.set('El nombre del tipo no puede exceder 30 caracteres.');
-      return;
-    }
-
-    this.nuevoTipoOcupado.set(true);
-    this.nuevoTipoError.set('');
-    this.mantenimiento.crearTipoItem(nombre).subscribe({
-      next: (tipoCreado) => {
-        this.nuevoTipoOcupado.set(false);
-        this.cerrarModalNuevoTipo();
-        this.avisos.mostrar(`Tipo "${tipoCreado.nombreItem}" creado exitosamente.`);
-        this.mantenimiento.tiposItem().subscribe((tipos) => {
-          this.tiposItem.set(tipos || []);
-          this.formIdTipoItem = tipoCreado.idTipoItem;
-        });
-      },
-      error: (e) => {
-        this.nuevoTipoOcupado.set(false);
-        this.nuevoTipoError.set(mensajeError(e));
-      },
-    });
-  }
-
-  // --- Modal 3: Asignar / Trasladar / Retirar ---
   abrirAsignacion(item: Item, tipo: 'asignar' | 'trasladar' | 'retirar'): void {
     this.itemParaAsignar.set(item);
     this.tipoOperacionAsignacion.set(tipo);
     this.asigIdHabitacion =
-      tipo === 'retirar' ? null : item.idHabitacion || this.habitaciones()[0]?.idHabitacion || null;
+      tipo === 'retirar'
+        ? null
+        : item.idHabitacion || this.habitaciones()[0]?.idHabitacion || null;
     this.asigEstadoActualItem = item.estadoActualItem || 'BUENO';
     this.asigObservacion = '';
     this.asigClaveOperacion = generarClaveOperacion();
@@ -509,7 +298,7 @@ export class InmobiliarioMantenimiento implements OnInit {
     this.asigOcupado.set(true);
     this.asigError.set('');
 
-    this.mantenimiento
+    this.inmobiliarioService
       .asignarItem(item.idItem, {
         claveOperacion: this.asigClaveOperacion,
         idUsuario: this.sesion.actual()!.idUsuario,
@@ -537,7 +326,6 @@ export class InmobiliarioMantenimiento implements OnInit {
       });
   }
 
-  // --- Modal 4: Actualizar Conservación ---
   abrirConservacion(item: Item): void {
     this.itemParaConservar.set(item);
     this.consEstadoActualItem = item.estadoActualItem || 'BUENO';
@@ -559,7 +347,9 @@ export class InmobiliarioMantenimiento implements OnInit {
     if (!item || this.consOcupado()) return;
 
     if (!this.sesion.actual()?.idUsuario) {
-      this.consError.set('Inicia sesión para registrar el estado de conservación.');
+      this.consError.set(
+        'Inicia sesión para registrar el estado de conservación.',
+      );
       return;
     }
     if (!this.consObservacion.trim()) {
@@ -585,7 +375,7 @@ export class InmobiliarioMantenimiento implements OnInit {
     this.consOcupado.set(true);
     this.consError.set('');
 
-    this.mantenimiento
+    this.inmobiliarioService
       .conservarItem(item.idItem, {
         claveOperacion: this.consClaveOperacion,
         idUsuario: this.sesion.actual()!.idUsuario,
@@ -596,7 +386,9 @@ export class InmobiliarioMantenimiento implements OnInit {
         next: () => {
           this.consOcupado.set(false);
           this.cerrarModalConservacion();
-          this.avisos.mostrar('Estado de conservación actualizado exitosamente.');
+          this.avisos.mostrar(
+            'Estado de conservación actualizado exitosamente.',
+          );
           this.cargar();
         },
         error: (e) => {
@@ -606,10 +398,10 @@ export class InmobiliarioMantenimiento implements OnInit {
       });
   }
 
-  // --- Modal 5: Baja por Daño o Pérdida ---
   abrirBaja(item: Item): void {
     this.itemParaBaja.set(item);
-    this.bajaCondicionFinal = item.estadoActualItem === 'FALTANTE' ? 'FALTANTE' : 'DANADO';
+    this.bajaCondicionFinal =
+      item.estadoActualItem === 'FALTANTE' ? 'FALTANTE' : 'DANADO';
     this.bajaObservacion = '';
     this.bajaClaveOperacion = generarClaveOperacion();
     this.lastBajaPayload = '';
@@ -642,7 +434,9 @@ export class InmobiliarioMantenimiento implements OnInit {
         return;
       }
       if (!this.bajaObservacion.trim()) {
-        this.bajaError.set('La observación es obligatoria (máximo 180 caracteres).');
+        this.bajaError.set(
+          'La observación es obligatoria (máximo 180 caracteres).',
+        );
         return;
       }
       if (this.bajaObservacion.trim().length > 180) {
@@ -670,7 +464,7 @@ export class InmobiliarioMantenimiento implements OnInit {
       }
 
       // Etapa 1: Retiro de la habitación con condición final
-      this.mantenimiento
+      this.inmobiliarioService
         .asignarItem(item.idItem, {
           claveOperacion: this.bajaClaveOperacion,
           idUsuario: this.sesion.actual()!.idUsuario,
@@ -692,11 +486,13 @@ export class InmobiliarioMantenimiento implements OnInit {
       // Unidad en almacén / sin asignar: desactivación directa
       this.bajaOcupado.set(true);
       this.bajaError.set('');
-      this.mantenimiento.desactivarItem(item.idItem).subscribe({
+      this.inmobiliarioService.desactivarItem(item.idItem).subscribe({
         next: () => {
           this.bajaOcupado.set(false);
           this.cerrarModalBaja();
-          this.avisos.mostrar('Unidad desactivada correctamente. Su historial se conserva.');
+          this.avisos.mostrar(
+            'Unidad desactivada correctamente. Su historial se conserva.',
+          );
           this.cargar();
         },
         error: (e) => {
@@ -711,7 +507,7 @@ export class InmobiliarioMantenimiento implements OnInit {
     this.bajaOcupado.set(true);
     this.bajaError.set('');
 
-    this.mantenimiento.desactivarItem(idItem).subscribe({
+    this.inmobiliarioService.desactivarItem(idItem).subscribe({
       next: () => {
         this.bajaOcupado.set(false);
         this.cerrarModalBaja();
@@ -730,7 +526,6 @@ export class InmobiliarioMantenimiento implements OnInit {
     });
   }
 
-  // --- Modal 6: Consultar Detalle e Historial ---
   abrirDetalle(item: Item): void {
     this.itemDetalle.set(item);
     this.historial.set([]);
@@ -742,7 +537,7 @@ export class InmobiliarioMantenimiento implements OnInit {
       return;
     }
 
-    this.mantenimiento.historialItem(item.idItem).subscribe({
+    this.inmobiliarioService.historialItem(item.idItem).subscribe({
       next: (movimientos) => {
         this.historial.set(movimientos || []);
         this.cargandoHistorial.set(false);
@@ -765,7 +560,6 @@ export class InmobiliarioMantenimiento implements OnInit {
     if (item) this.abrirEditar(item);
   }
 
-  // --- Helpers de visualización ---
   textoCondicion(condicion: EstadoConservacion | null | undefined): string {
     switch (condicion) {
       case 'BUENO':
@@ -799,7 +593,9 @@ export class InmobiliarioMantenimiento implements OnInit {
   textoSituacion(item: Item): string {
     if (item.estadoItem === 'Inactivo') return 'Dado de baja (Inactivo)';
     if (item.estadoItem === 'En habitacion') {
-      return item.numeroCuarto ? `Habitación ${item.numeroCuarto}` : 'En habitación';
+      return item.numeroCuarto
+        ? `Habitación ${item.numeroCuarto}`
+        : 'En habitación';
     }
     return 'En almacén (Sin asignar)';
   }
@@ -847,5 +643,22 @@ export class InmobiliarioMantenimiento implements OnInit {
       default:
         return 'badge-default';
     }
+  }
+  abrirRegistrar(): void {
+    void this.router.navigate(['nuevo'], {
+      relativeTo: this.route,
+      queryParams: {
+        idHabitacion:
+          typeof this.filtroHabitacion === 'number'
+            ? this.filtroHabitacion
+            : null,
+        idTipoItem: this.filtroTipo,
+      },
+    });
+  }
+  abrirEditar(item: Item): void {
+    void this.router.navigate([item.idItem, 'editar'], {
+      relativeTo: this.route,
+    });
   }
 }

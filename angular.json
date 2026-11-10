@@ -25,7 +25,9 @@
                 "input": "public"
               }
             ],
-            "styles": ["src/styles.css"]
+            "styles": [
+              "src/styles.css"
+            ]
           },
           "configurations": {
             "production": {
@@ -59,7 +61,9 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
-          "options": { "proxyConfig": "proxy.conf.json" },
+          "options": {
+            "proxyConfig": "proxy.conf.json"
+          },
           "configurations": {
             "production": {
               "buildTarget": "rebolsys-frontend:build:production"
@@ -71,7 +75,10 @@
           "defaultConfiguration": "development"
         },
         "test": {
-          "builder": "@angular/build:unit-test"
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "runnerConfig": "vitest-base.config.mts"
+          }
         }
       }
     }

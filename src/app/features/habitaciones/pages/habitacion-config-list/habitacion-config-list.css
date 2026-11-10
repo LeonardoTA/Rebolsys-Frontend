@@ -69,7 +69,9 @@
   justify-content: space-between;
   gap: 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
   overflow: hidden;
 }
 
@@ -82,7 +84,13 @@
   place-items: center;
 }
 
-.room-photo-placeholder { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.room-photo-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
 
 .room-card:hover {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.07);
