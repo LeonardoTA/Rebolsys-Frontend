@@ -63,3 +63,7 @@ proxy.qa.json
 /.work/
 /.local/
 **/*local-private*
+
+# Material personal que no forma parte del código del proyecto
+/entregables/
+/iniciar-frontend.ps1

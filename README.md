@@ -1,10 +1,10 @@
 # REBOLSYS Frontend
 
-## Aporte actualizado de James Tequen — iteración 2
+## Mantenimiento
 
-`Dev-Tequen` integra la base `iteracion2` del equipo y reorganiza habitaciones y mobiliario siguiendo el patrón por entidad de Pharma. En este repositorio, la rama `iteracion2` sirve como base de comparación del aporte. Ver [resumen para presentar al grupo](entregables/PARA-PRESENTAR-ITERACION2.md) y [pruebas de la adaptación](entregables/PRUEBAS-REORGANIZACION-ITERACION2.md).
+Frontend basado en la iteración 2 del equipo. Habitaciones y mobiliario tienen modelos, servicios, rutas, listados y formularios separados por entidad, siguiendo el patrón de Pharma.
 
-Desde esta carpeta se puede ejecutar `.\iniciar-frontend.ps1` con la API en 8085, o `.\iniciar-frontend.ps1 -PuertoApi 8080` si el backend usa el puerto predeterminado de Maven. El script genera el proxy sin BOM y guarda cachés en la unidad del proyecto. Las pantallas están en `/configuraciones/habitaciones`, `/configuraciones/mobiliario` y `/configuraciones/productos`.
+Las pantallas están en `/configuraciones/habitaciones`, `/configuraciones/mobiliario` y `/configuraciones/productos`. Las operaciones disponibles dependen de los permisos de la sesión.
 
 Aplicación Angular para las reservas y la tienda del hospedaje Real Bolognesi.
 
@@ -17,7 +17,7 @@ npm ci
 npm start
 ```
 
-Abrir `http://localhost:4200`. Iniciar también [rebolsysBackend](https://github.com/branpachman-lang/rebolsysBackend). `proxy.conf.json` reenvía `/api` al backend local en el puerto 8080. Si cambia ese puerto, actualizar el proxy y reiniciar el frontend.
+Abrir `http://localhost:4200`. Iniciar también el [backend de iteración 2](https://github.com/branpachman-lang/rebolsysBackend/tree/iteracion2). `proxy.conf.json` reenvía `/api` al backend local en el puerto 8080. Si cambia ese puerto, actualizar el proxy y reiniciar el frontend.
 
 ```powershell
 npm run build
@@ -138,4 +138,10 @@ Los datos provienen de Oracle a través de la API. Los mensajes de validación d
 
 La iteración 2 incluye autenticación y permisos por acción. La pasarela de pagos, carga de imágenes desde archivos y paso de facturación a producción permanecen fuera de esta reorganización. La versión está destinada al desarrollo local y a la facturación beta.
 
-Este repositorio incluye las pruebas y los informes de la reorganización. Las credenciales, cachés, compilaciones y dependencias instaladas quedan excluidas de Git.
+## Pruebas
+
+```powershell
+npm test -- --watch=false
+```
+
+El repositorio incluye las pruebas y su configuración. Los informes personales, iniciadores locales, credenciales, cachés, compilaciones y dependencias instaladas quedan excluidos de Git.
