@@ -5,7 +5,7 @@ import { Pagina } from "../../core/models/pagina-response";
 
 export type EstadoItem = "BUENO" | "DANADO" | "FALTANTE" | "EN_REPARACION";
 export type EstadoHabitacion = "DISPONIBLE" | "OCUPADO" | "MANTENIMIENTO" | "POR_LIMPIAR" | "EN_LIMPIEZA";
-export type EstadoInforme = "POR_APROBAR" | "APROBADO";
+export type EstadoInforme = "POR_APROBAR" | "APROBADO" | "INVALIDADO";
 export type TipoAccion = "REPARACION" | "REPOSICION";
 export type Evidencia = { evidenciaRuta: string; evidenciaSha256: string };
 export type Habitacion = {
@@ -13,7 +13,7 @@ export type Habitacion = {
   fechaSalida: string | null; estado: EstadoHabitacion; responsable: { idUsuario: number; usuario: string } | null;
   puedeIniciarLimpieza: boolean; puedeRetomarBorrador: boolean;
 };
-export type ItemHabitacion = { idDetalleHabitacion: number; idItem: number; item: string; estado: string | null };
+export type ItemHabitacion = { idItem: number; item: string; estado: string | null };
 export type Informe = {
   idInformeRevision: number; nombre: string; idHabitacion: number; numeroHabitacion: string; fechaEnvio: string;
   estado: EstadoInforme; responsable: { usuario: string }; tieneIncidencias: boolean; incidenciasPendientes: number;
@@ -25,7 +25,7 @@ export type Ticket = {
   fechaGeneracion: string; puedeEditar: boolean; puedeEliminar: boolean;
 };
 export type ItemInforme = {
-  idDetalleInforme: number; idDetalleHabitacion: number; idItem: number; item: string;
+  idDetalleInforme: number; idItem: number; item: string;
   estadoEncontrado: EstadoItem; estadoActualItem: EstadoItem; observaciones: string | null;
   evidencia: Evidencia | null; idTicket: number | null; puedeCrearTicket: boolean;
 };
@@ -44,7 +44,7 @@ export type InicioLimpieza = {
   informesAprobados: number; ticketsGenerados: number;
   alcance: "GENERAL" | "DIA" | "TURNO";
 };
-export type EntradaItem = { idDetalleHabitacion: number; estadoEncontrado: EstadoItem; observaciones: string; evidencia: Evidencia | null };
+export type EntradaItem = { idItem: number; estadoEncontrado: EstadoItem; observaciones: string; evidencia: Evidencia | null };
 export type AccionTicket = { tipoAccion: TipoAccion; observacionTecnica: string; costoReparacion: number | null };
 
 @Injectable({ providedIn: "root" })

@@ -42,7 +42,7 @@
           }
           <div class="table-scroll">
             <table><thead><tr><th>Ítem</th><th>Estado</th></tr></thead>
-              <tbody>@for (item of p.datos.items; track item.idDetalleHabitacion) {
+              <tbody>@for (item of p.datos.items; track item.idItem) {
                 <tr><td>{{ item.item }}</td><td><span [class]="'estado ' + item.estado">{{ texto(item.estado) }}</span></td></tr>
               } @empty { <tr><td colspan="2" class="vacio">La habitación no tiene ítems asignados.</td></tr> }</tbody>
             </table>
@@ -134,7 +134,7 @@
           <div class="table-scroll">
             <table class="tabla-formulario">
               <thead><tr><th>Ítem</th><th>Estado</th><th>Observación</th><th>Evidencia</th></tr></thead>
-              <tbody>@for (fila of filas(); track fila.idDetalleHabitacion) {
+              <tbody>@for (fila of filas(); track fila.idItem) {
                 <tr>
                   <td><strong>{{ fila.item }}</strong></td>
                   <td>
@@ -142,21 +142,21 @@
                       @for (estado of estadosItem; track estado) {
                         <button type="button" class="opcion-estado" [class.seleccionada]="fila.estadoEncontrado === estado"
                           [attr.aria-pressed]="fila.estadoEncontrado === estado" [disabled]="ocupado() || fila.estadoFijo"
-                          (click)="editarFila(fila.idDetalleHabitacion, { estadoEncontrado: estado })">{{ texto(estado) }}</button>
+                          (click)="editarFila(fila.idItem, { estadoEncontrado: estado })">{{ texto(estado) }}</button>
                       }
                     </div>
                     @if (fila.estadoFijo) { <small class="muted">El ítem tiene un ticket.</small> }
                   </td>
                   <td><textarea [attr.aria-label]="'Observación de ' + fila.item" [ngModel]="fila.observaciones"
-                    (ngModelChange)="editarFila(fila.idDetalleHabitacion, { observaciones: $event })"
-                    [name]="'observacion' + fila.idDetalleHabitacion" maxlength="1000" rows="2" placeholder="Añade una observación"></textarea></td>
+                    (ngModelChange)="editarFila(fila.idItem, { observaciones: $event })"
+                    [name]="'observacion' + fila.idItem" maxlength="1000" rows="2" placeholder="Añade una observación"></textarea></td>
                   <td>
                     @if (foto(fila.evidencia); as ruta) { <a class="evidencia" [href]="ruta" target="_blank" rel="noopener noreferrer">Ver foto</a> }
                     @else if (fila.evidencia) { <small>Foto registrada</small> }
                     @if (permite('CARGAR_EVIDENCIA')) {
                       <label class="cargar-foto">{{ fila.evidencia ? 'Cambiar foto' : 'Adjuntar foto' }}
                         <input type="file" accept="image/jpeg,image/png" [disabled]="ocupado()"
-                          (change)="cargarFoto($event, fila.idDetalleHabitacion)" />
+                          (change)="cargarFoto($event, fila.idItem)" />
                       </label>
                     }
                     @if (fila.estadoEncontrado && fila.estadoEncontrado !== 'BUENO' && !fila.evidencia) {
@@ -288,6 +288,7 @@
           <label>Habitación <input name="numero" [(ngModel)]="filtrosInforme.numeroHabitacion" placeholder="Número" /></label>
           <label>Estado <select name="estado" [(ngModel)]="filtrosInforme.estado"><option value="">Todos</option>
             <option value="POR_APROBAR">Por aprobar</option><option value="APROBADO">Aprobado</option>
+            <option value="INVALIDADO">Invalidado</option>
           </select></label>
           <label>Fecha de emisión <input type="date" name="fecha" [(ngModel)]="filtrosInforme.fechaEmision" /></label>
           <button class="button primary" type="submit">Aplicar filtros</button>

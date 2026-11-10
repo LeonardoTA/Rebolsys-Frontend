@@ -34,7 +34,8 @@ type Confirmacion = { titulo: string; texto: string; ejecutar: () => void };
 
 const ETIQUETAS: Record<string, string> = {
   DISPONIBLE: "Disponible", OCUPADO: "Ocupada", MANTENIMIENTO: "En mantenimiento", POR_LIMPIAR: "Por limpiar",
-  EN_LIMPIEZA: "En limpieza", POR_APROBAR: "Por aprobar", APROBADO: "Aprobado", BUENO: "Óptimo", DANADO: "Dañado",
+  EN_LIMPIEZA: "En limpieza", POR_APROBAR: "Por aprobar", APROBADO: "Aprobado", INVALIDADO: "Invalidado",
+  BUENO: "Óptimo", DANADO: "Dañado",
   FALTANTE: "Faltante", EN_REPARACION: "En reparación", SIN_REGISTRAR: "Sin registrar", SIN_INFORME: "Sin informe",
   SIN_TICKET: "Sin ticket", CON_TICKETS: "Con tickets", REPARACION: "Reparación", REPOSICION: "Reposición",
   RESUELTO: "Resuelto", PENDIENTE: "Pendiente", CANCELADO: "Cancelado", EN_PROCESO: "En proceso", ASIGNADO: "Asignado",
@@ -157,7 +158,7 @@ export class LimpiezaPanel {
     this.ejecutar(this.api.iniciar(habitacion.idHabitacion), datos => {
       this.observaciones = "";
       this.filas.set(datos.items.map(i => ({
-        idDetalleHabitacion: i.idDetalleHabitacion, item: i.item, estadoEncontrado: "",
+        idItem: i.idItem, item: i.item, estadoEncontrado: "",
         observaciones: "", evidencia: null, estadoFijo: false,
       })));
       this.panel.set({ tipo: "nuevoInforme", datos });
@@ -167,7 +168,7 @@ export class LimpiezaPanel {
   abrirEditarInforme(id: number) {
     this.ejecutar(this.api.informe(id), datos => {
       this.filas.set(datos.items.map(i => ({
-        idDetalleHabitacion: i.idDetalleHabitacion, item: i.item, estadoEncontrado: i.estadoEncontrado,
+        idItem: i.idItem, item: i.item, estadoEncontrado: i.estadoEncontrado,
         observaciones: i.observaciones ?? "", evidencia: i.evidencia, estadoFijo: i.idTicket !== null,
       })));
       this.panel.set({ tipo: "editarInforme", datos });
@@ -175,14 +176,14 @@ export class LimpiezaPanel {
   }
 
   editarFila(id: number, cambios: Partial<Fila>) {
-    this.filas.update(filas => filas.map(f => f.idDetalleHabitacion === id ? { ...f, ...cambios } : f));
+    this.filas.update(filas => filas.map(f => f.idItem === id ? { ...f, ...cambios } : f));
   }
 
   guardarInforme() {
     const panel = this.panel();
     if (!this.puedeGuardarInforme() || (panel?.tipo !== "nuevoInforme" && panel?.tipo !== "editarInforme")) return;
     const items = this.filas().map(f => ({
-      idDetalleHabitacion: f.idDetalleHabitacion, estadoEncontrado: f.estadoEncontrado as EstadoItem,
+      idItem: f.idItem, estadoEncontrado: f.estadoEncontrado as EstadoItem,
       observaciones: f.observaciones, evidencia: f.evidencia,
     }));
     const peticion = panel.tipo === "nuevoInforme"

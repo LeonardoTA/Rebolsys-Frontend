@@ -34,7 +34,6 @@ export interface Item {
   nombreItem: string;
   idTipoItem: number;
   estadoItem: EstadoItem;
-  idDetalleHabitacion: number | null;
   idHabitacion: number | null;
   estadoActualItem: EstadoConservacion | null;
   nombreTipo: string;
