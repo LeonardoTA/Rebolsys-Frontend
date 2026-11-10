@@ -1,10 +1,12 @@
 :host {
   display: block;
+  height: 100%;
 }
 .sidebar {
-  position: fixed;
-  inset: 0 auto 0 0;
-  width: 280px;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: #ddd;
   padding: 26px 12px;
   display: flex;
@@ -58,6 +60,40 @@ nav a {
   min-height: 57px;
   font-size: 15px;
 }
+.menu-group-button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: white;
+  color: inherit;
+  text-align: left;
+}
+.menu-group-button span {
+  flex: 1;
+}
+.group-chevron {
+  width: 15px;
+  transition: transform 0.2s;
+}
+.group-chevron.expanded {
+  transform: rotate(90deg);
+}
+.submenu {
+  margin: 10px 0 0 18px;
+  padding-left: 10px;
+  border-left: 2px solid #c4c0d8;
+  display: grid;
+  gap: 8px;
+}
+.submenu a {
+  padding: 10px 12px;
+  min-height: 44px;
+  font-size: 14px;
+}
 nav a.active {
   background: var(--azul);
   color: #fff;
@@ -84,9 +120,6 @@ nav span {
   line-height: 1.7;
 }
 @media (min-width: 1700px) {
-  .sidebar {
-    width: 320px;
-  }
   nav a {
     font-size: 17px;
     padding: 18px 14px;

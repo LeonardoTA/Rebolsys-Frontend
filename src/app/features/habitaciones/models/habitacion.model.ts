@@ -16,6 +16,7 @@ export interface Habitacion {
   precio: number;
   estado: string;
   disponible: boolean;
+  ocupadaActualmente?: boolean;
   reservas: Bloque[];
 }
 
@@ -23,4 +24,11 @@ export interface OcupacionHabitacion {
   capacidadPersonas: number;
   plazasCama: number;
   maxMenoresSinCama: number;
+}
+
+export interface MobiliarioHabitacion {
+  idItem: number;
+  nombreItem: string;
+  nombreTipo: string;
+  estadoActualItem: string | null;
 }

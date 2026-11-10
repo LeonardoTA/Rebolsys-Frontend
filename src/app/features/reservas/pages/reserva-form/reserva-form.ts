@@ -14,15 +14,14 @@ import { ClienteService } from "../../../clientes/services/cliente-service";
 import { HabitacionService } from "../../../habitaciones/services/habitacion-service";
 import { ReservaService } from "../../services/reserva-service";
 import { esMenorDeSiete, errorOcupacion } from "../../utils/ocupacion";
-
+import { claveDocumento, errorIdentidadesReserva } from "../../utils/identidad-reserva";
 import {
-  Component,
-  inject,
-  input,
-  signal,
-  computed,
-  DestroyRef,
-} from "@angular/core";
+  ConfirmacionPago,
+  RegistroReservaApi,
+  ReservaApi,
+} from "../../models/reserva-api.model";
+
+import { Component, inject, signal, computed, DestroyRef } from "@angular/core";
 import {
   ReactiveFormsModule,
   FormsModule,
@@ -32,9 +31,17 @@ import {
   Validators,
 } from "@angular/forms";
 import { CurrencyPipe } from "@angular/common";
-import { Router, RouterLink } from "@angular/router";
+import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import { forkJoin, catchError, map, throwError } from "rxjs";
+import {
+  forkJoin,
+  catchError,
+  map,
+  throwError,
+  concatMap,
+  of,
+  debounceTime,
+} from "rxjs";
 import { DocumentoConsultaService } from "../../../clientes/services/documento-consulta-service";
 import {
   tipoDocumento,
@@ -63,8 +70,8 @@ export class ReservaForm {
   private readonly documentoConsultaService = inject(DocumentoConsultaService);
   private readonly habitacionService = inject(HabitacionService);
   private readonly reservaService = inject(ReservaService);
-  ref = input<string>();
   private router = inject(Router);
+  private ruta = inject(ActivatedRoute);
   private avisos = inject(NotificacionService);
   private fb = inject(UntypedFormBuilder);
   private destroy = inject(DestroyRef);
@@ -72,20 +79,13 @@ export class ReservaForm {
   rooms = signal<Habitacion[]>([]);
   cargando = signal(true);
   errorCarga = signal("");
-  error = signal("");
-  errorPago = signal("");
   guardando = signal(false);
-  conPagos = signal(false);
-  totalConsumos = signal(0);
-  private habitacionesConConsumos = new Set<number>();
   editandoHuesped = signal<number | null>(null);
   private clienteClave = "";
-  private costosOriginales = new Map<number, number>();
   buscando = signal(false);
   clienteMensaje = signal("");
   pagoAbierto = signal(false);
   huespedEn = signal<number | null>(null);
-  guestError = signal("");
   guestMensaje = signal("");
   buscandoHuesped = signal(false);
   private consultaClienteId = 0;
@@ -95,6 +95,16 @@ export class ReservaForm {
   nombre = nombre;
   private clave = crypto.randomUUID();
   private solicitud: Registro | null = null;
+  idUsuario = signal<number | null>(null);
+  reservaRegistrada = signal<ReservaApi | null>(null);
+  registroIniciado = signal(false);
+  pagoFijado = signal(false);
+  comprobando = signal(false);
+  errorDisponibilidad = signal("");
+  private consultaDisponibilidad = 0;
+  private solicitudApi: RegistroReservaApi | null = null;
+  private clavePago = crypto.randomUUID();
+  private pagoEnviado: ConfirmacionPago | null = null;
   form = this.fb.group({
     cliente: this.fb.group({
       idTipoDocumento: [null, Validators.required],
@@ -116,8 +126,9 @@ export class ReservaForm {
     numeroDocumento: ["", [Validators.required, Validators.maxLength(50)]],
     nombres: ["", [Validators.required, Validators.maxLength(100)]],
     apellidos: ["", [Validators.required, Validators.maxLength(100)]],
+    telefono: ["", Validators.maxLength(15)],
     fechaNacimiento: ["", [Validators.required, fechaNacimientoValida]],
-    idTipoOcupante: [null, Validators.required],
+    idTipoOcupante: [null],
   });
   anadirMenores = signal(false);
   menores = this.fb.array([]);
@@ -150,6 +161,7 @@ export class ReservaForm {
       numeroDocumento: ["", Validators.required],
       nombres: ["", [Validators.required, Validators.maxLength(100)]],
       apellidos: ["", [Validators.required, Validators.maxLength(100)]],
+      telefono: ["", Validators.maxLength(15)],
       fechaNacimiento: ["", [Validators.required, fechaNacimientoValida]],
       idTipoOcupante: [
         this.catalogos()?.ocupantes.find(
@@ -157,7 +169,6 @@ export class ReservaForm {
         )?.id ||
           this.catalogos()?.ocupantes[0]?.id ||
           null,
-        Validators.required,
       ],
       parentesco: [null, Validators.required],
       ocupaPlazaCama: [true],
@@ -186,8 +197,8 @@ export class ReservaForm {
   buscarMenor(i: number) {
     const grupo = this.grupoMenor(i);
     this.validarDocumento(grupo);
-    if (grupo.get("numeroDocumento")!.invalid) {
-      this.guestError.set(this.mensajeDocumento(grupo));
+    if (grupo.get("idTipoDocumento")!.invalid || grupo.get("numeroDocumento")!.invalid) {
+      this.alertar(this.mensajeDocumento(grupo) || "Selecciona el tipo de documento.");
       return;
     }
     const { idTipoDocumento, numeroDocumento } = grupo.getRawValue();
@@ -219,8 +230,10 @@ export class ReservaForm {
           if (
             this.menores.controls.includes(grupo) &&
             this.consultasMenor.get(grupo) === id
-          )
-            this.guestMensaje.set(mensajeError(error));
+          ) {
+            this.guestMensaje.set("");
+            this.alertar(mensajeError(error));
+          }
         },
       });
   }
@@ -234,11 +247,11 @@ export class ReservaForm {
     return this.guests(i).filter((g) => !this.esMenor(g, i));
   }
   clavePersona(g: Huesped) {
-    return g.persona.idTipoDocumento + ":" + g.persona.numeroDocumento;
+    return claveDocumento(g.persona);
   }
   responsableSeleccionado(g: Huesped) {
     return g.responsable
-      ? g.responsable.idTipoDocumento + ":" + g.responsable.numeroDocumento
+      ? claveDocumento(g.responsable)
       : "";
   }
   asignarResponsable(
@@ -274,9 +287,9 @@ export class ReservaForm {
   }
   total = computed(() => {
     this.tick();
-    return (
-      this.totalConsumos() +
-      this.habitaciones.controls.reduce((n, _, i) => n + this.costoLinea(i), 0)
+    return this.habitaciones.controls.reduce(
+      (n, _, i) => n + this.costoLinea(i),
+      0,
     );
   });
   get cliente() {
@@ -294,12 +307,10 @@ export class ReservaForm {
       .get("idTipoDocumento")!
       .valueChanges.pipe(takeUntilDestroyed(this.destroy))
       .subscribe(() => {
-        if (!this.ref()) {
+        {
           const tipo = this.tipoDocumentoGrupo(this.cliente);
           if (tipo === "DNI")
             this.cliente.get("empresa")!.setValue(false, { emitEvent: false });
-          if (tipo === "RUC")
-            this.cliente.get("empresa")!.setValue(true, { emitEvent: false });
         }
         this.validarCliente();
       });
@@ -310,14 +321,24 @@ export class ReservaForm {
     this.cliente.valueChanges
       .pipe(takeUntilDestroyed(this.destroy))
       .subscribe(() => {
-        if (!this.ref() || !this.clienteClave) return;
+        if (
+          !this.clienteClave ||
+          this.esEmpresa() ||
+          this.claveClienteActual() !== this.clienteClave
+        )
+          return;
         const datos = this.datosCliente();
-        this.sincronizarPersona(this.clienteClave, datos);
-        this.clienteClave = datos.idTipoDocumento + ":" + datos.numeroDocumento;
+        const huespedes = this.habitaciones.controls.flatMap((_, i) =>
+          this.guests(i).map((g) => this.clavePersona(g) === this.clienteClave ? datos : g.persona),
+        );
+        if (!errorIdentidadesReserva(datos, huespedes)) this.sincronizarPersona(this.clienteClave, datos);
       });
     this.form.valueChanges
       .pipe(takeUntilDestroyed(this.destroy))
       .subscribe(() => this.tick.update((n) => n + 1));
+    this.habitaciones.valueChanges
+      .pipe(debounceTime(250), takeUntilDestroyed(this.destroy))
+      .subscribe(() => this.actualizarDisponibilidad());
   }
   ngOnInit() {
     this.cargar();
@@ -326,7 +347,7 @@ export class ReservaForm {
     this.cargando.set(true);
     this.errorCarga.set("");
     let end = new Date();
-    end.setDate(end.getDate() + 365);
+    end.setDate(end.getDate() + 7);
     forkJoin({
       catalogos: this.catalogoService.listar(),
       rooms: this.habitacionService.listar(this.hoy, fechaLocal(end)),
@@ -334,9 +355,33 @@ export class ReservaForm {
       next: ({ catalogos, rooms }) => {
         this.catalogos.set(catalogos);
         this.rooms.set(rooms);
-        if (this.ref()) this.cargarEdicion();
-        else {
-          if (!this.habitaciones.length) this.agregarHabitacion();
+        {
+          this.idUsuario.set(
+            this.idUsuario() ?? catalogos.usuarios?.[0]?.id ?? null,
+          );
+          if (!this.habitaciones.length) {
+            this.agregarHabitacion();
+            const id = Number(
+              this.ruta.snapshot.queryParamMap.get("habitacion"),
+            );
+            const desde = this.ruta.snapshot.queryParamMap.get("desde");
+            if (rooms.some((r) => r.idHabitacion === id))
+              this.habitaciones.at(0).patchValue({ idHabitacion: id });
+            if (
+              desde &&
+              /^\d{4}-\d{2}-\d{2}$/.test(desde) &&
+              Number.isFinite(new Date(desde + "T00:00:00").getTime())
+            ) {
+              const salida = new Date(desde + "T00:00:00");
+              salida.setDate(salida.getDate() + 1);
+              this.habitaciones
+                .at(0)
+                .patchValue({
+                  fechaIngreso: desde + "T14:00",
+                  fechaSalida: fechaLocal(salida) + "T12:00",
+                });
+            }
+          }
           this.cliente.patchValue({
             idTipoDocumento: catalogos.documentos[0]?.id || null,
           });
@@ -347,57 +392,57 @@ export class ReservaForm {
       error: (e) => {
         this.cargando.set(false);
         this.errorCarga.set(mensajeError(e));
-      },
-    });
-  }
-  cargarEdicion() {
-    this.reservaService.obtener(this.ref()!).subscribe({
-      next: (r) => {
-        if (r.estado !== "CONFIRMADA") {
-          this.errorCarga.set("Solo se pueden editar reservas confirmadas.");
-          this.cargando.set(false);
-          return;
-        }
-        this.cliente.patchValue(r.cliente.datos);
-        this.validarCliente();
-        this.clienteClave =
-          r.cliente.datos.idTipoDocumento +
-          ":" +
-          r.cliente.datos.numeroDocumento;
-        this.habitaciones.clear();
-        r.habitaciones.forEach((h) => this.agregarHabitacion(h));
-        this.totalConsumos.set(r.totalConsumos || 0);
-        this.habitacionesConConsumos = new Set(
-          (r.consumos || []).map((c) => c.idDetalleReserva),
-        );
-        this.conPagos.set(r.pagado > 0);
-        if (r.pagado > 0) {
-          r.habitaciones.forEach((h) =>
-            this.costosOriginales.set(h.idHabitacion, h.costo),
-          );
-          this.habitaciones.controls.forEach((h) =>
-            ["idHabitacion", "fechaIngreso", "fechaSalida"].forEach((c) =>
-              h.get(c)!.disable(),
-            ),
-          );
-        }
-        this.cargando.set(false);
-      },
-      error: (e) => {
-        this.errorCarga.set(mensajeError(e));
-        this.cargando.set(false);
+        this.alertar(this.errorCarga());
       },
     });
   }
   esEmpresa() {
     return !!this.cliente.get("empresa")?.value;
   }
-  validarCliente() {
+  actualizarDisponibilidad() {
+    if (this.registroIniciado()) return;
+    const fechas = this.habitaciones.getRawValue() as Estancia[];
     if (
-      !this.ref() &&
-      this.esEmpresa() &&
-      this.tipoDocumentoGrupo(this.cliente) === "DNI"
-    ) {
+      !fechas.length ||
+      fechas.some(
+        (h) =>
+          !h.fechaIngreso ||
+          !h.fechaSalida ||
+          !noches(h.fechaIngreso, h.fechaSalida),
+      )
+    )
+      return;
+    const desde = fechas.map((h) => h.fechaIngreso.slice(0, 10)).sort()[0];
+    const final = fechas
+      .map((h) => h.fechaSalida.slice(0, 10))
+      .sort()
+      .at(-1)!;
+    const hasta = new Date(final + "T00:00:00");
+    hasta.setDate(hasta.getDate() + 1);
+    const id = ++this.consultaDisponibilidad;
+    this.comprobando.set(true);
+    this.errorDisponibilidad.set("");
+    this.habitacionService
+      .listar(desde, fechaLocal(hasta))
+      .pipe(takeUntilDestroyed(this.destroy))
+      .subscribe({
+        next: (rooms) => {
+          if (id === this.consultaDisponibilidad) {
+            this.rooms.set(rooms);
+            this.comprobando.set(false);
+          }
+        },
+        error: (e) => {
+          if (id === this.consultaDisponibilidad) {
+            this.comprobando.set(false);
+            this.errorDisponibilidad.set(mensajeError(e));
+            this.alertar(this.errorDisponibilidad());
+          }
+        },
+      });
+  }
+  validarCliente() {
+    if (this.esEmpresa() && this.tipoDocumentoGrupo(this.cliente) === "DNI") {
       const ruc = this.catalogos()?.documentos.find(
         (documento) => tipoDocumento(documento) === "RUC",
       );
@@ -446,6 +491,7 @@ export class ReservaForm {
     const validators = [Validators.required, Validators.maxLength(50)];
     if (tipo === "DNI") validators.push(Validators.pattern(/^[0-9]{8}$/));
     if (tipo === "RUC") validators.push(Validators.pattern(/^[0-9]{11}$/));
+    if (tipo === "OTRO") validators.push(Validators.pattern(/\S/));
     grupo.get("numeroDocumento")!.setValidators(validators);
     grupo.get("numeroDocumento")!.updateValueAndValidity();
   }
@@ -454,10 +500,12 @@ export class ReservaForm {
     const error = grupo.get("numeroDocumento")?.errors;
     if (!error) return "";
     if (error["required"]) return "El número de documento es obligatorio";
-    if (error["pattern"])
-      return this.tipoDocumentoGrupo(grupo) === "DNI"
-        ? "El DNI debe contener exactamente 8 dígitos"
-        : "El RUC debe contener exactamente 11 dígitos";
+    if (error["pattern"]) {
+      const tipo = this.tipoDocumentoGrupo(grupo);
+      if (tipo === "DNI") return "El DNI debe contener exactamente 8 dígitos";
+      if (tipo === "RUC") return "El RUC debe contener exactamente 11 dígitos";
+      return "Ingresa un número de documento válido";
+    }
     return "El número de documento no debe superar 50 caracteres";
   }
 
@@ -511,7 +559,7 @@ export class ReservaForm {
     this.validarDocumento(this.cliente);
     const { idTipoDocumento, numeroDocumento } = this.cliente.getRawValue();
     if (!idTipoDocumento || this.cliente.get("numeroDocumento")!.invalid) {
-      this.clienteMensaje.set(
+      this.alertar(
         this.mensajeDocumento(this.cliente) ||
           "Selecciona el tipo de documento",
       );
@@ -533,7 +581,11 @@ export class ReservaForm {
             actual.numeroDocumento.trim() !== numero
           )
             return;
-          this.cliente.patchValue(resultado.datos);
+          const datos = { ...resultado.datos };
+          if (resultado.origen !== 'local' && this.tipoDocumentoGrupo(this.cliente) === 'RUC' && !this.esEmpresa()) {
+            delete datos.empresa; delete datos.razonSocial;
+          }
+          this.cliente.patchValue(datos);
           this.validarCliente();
           this.clienteMensaje.set(
             resultado.origen === "local"
@@ -544,7 +596,7 @@ export class ReservaForm {
         error: (error) => {
           if (id === this.consultaClienteId) {
             this.buscando.set(false);
-            this.clienteMensaje.set(mensajeError(error));
+            this.alertar(mensajeError(error));
           }
         },
       });
@@ -554,7 +606,7 @@ export class ReservaForm {
     this.validarDocumento(this.guestForm);
     const { idTipoDocumento, numeroDocumento } = this.guestForm.getRawValue();
     if (!idTipoDocumento || this.guestForm.get("numeroDocumento")!.invalid) {
-      this.guestError.set(
+      this.alertar(
         this.mensajeDocumento(this.guestForm) ||
           "Selecciona el tipo de documento",
       );
@@ -563,13 +615,12 @@ export class ReservaForm {
     const id = ++this.consultaHuespedId;
     const numero = numeroDocumento.trim();
     this.buscandoHuesped.set(true);
-    this.guestError.set("");
     this.guestMensaje.set("");
     this.consultarPersona(idTipoDocumento, numero)
       .pipe(takeUntilDestroyed(this.destroy))
       .subscribe({
         next: (resultado) => {
-          if (id !== this.consultaHuespedId) return;
+          if (id !== this.consultaHuespedId || this.huespedEn() === null) return;
           this.buscandoHuesped.set(false);
           const actual = this.guestForm.getRawValue();
           if (
@@ -578,7 +629,7 @@ export class ReservaForm {
           )
             return;
           if (resultado.datos.empresa) {
-            this.guestError.set(
+            this.alertar(
               "El huésped debe ser una persona natural; utiliza su DNI o documento personal.",
             );
             return;
@@ -591,15 +642,16 @@ export class ReservaForm {
           );
         },
         error: (error) => {
-          if (id === this.consultaHuespedId) {
+          if (id === this.consultaHuespedId && this.huespedEn() !== null) {
             this.buscandoHuesped.set(false);
-            this.guestError.set(mensajeError(error));
+            this.alertar(mensajeError(error));
           }
         },
       });
   }
 
   agregarHabitacion(line?: Estancia) {
+    const primera = this.habitaciones.at(0)?.getRawValue() as Estancia | undefined;
     const today = this.hoy,
       next = new Date();
     next.setDate(next.getDate() + 1);
@@ -607,11 +659,11 @@ export class ReservaForm {
       this.fb.group({
         idHabitacion: [line?.idHabitacion || null, Validators.required],
         fechaIngreso: [
-          line?.fechaIngreso?.slice(0, 16) || today + "T14:00",
+          line?.fechaIngreso?.slice(0, 16) || primera?.fechaIngreso || today + "T14:00",
           Validators.required,
         ],
         fechaSalida: [
-          line?.fechaSalida?.slice(0, 16) || fechaLocal(next) + "T12:00",
+          line?.fechaSalida?.slice(0, 16) || primera?.fechaSalida || fechaLocal(next) + "T12:00",
           Validators.required,
         ],
         huespedes: [line?.huespedes || []],
@@ -619,8 +671,7 @@ export class ReservaForm {
     );
   }
   quitarHabitacion(i: number) {
-    if (!this.conPagos() && this.habitaciones.length > 1)
-      this.habitaciones.removeAt(i);
+    if (this.habitaciones.length > 1) this.habitaciones.removeAt(i);
   }
   roomFor(i: number) {
     return this.rooms().find(
@@ -638,8 +689,6 @@ export class ReservaForm {
     return noches(line.fechaIngreso, line.fechaSalida);
   }
   costoLinea(i: number) {
-    if (this.conPagos())
-      return this.costosOriginales.get(this.roomFor(i)?.idHabitacion || 0) || 0;
     return this.nochesLinea(i) * (this.roomFor(i)?.precio || 0);
   }
   guests(i: number): Huesped[] {
@@ -656,6 +705,22 @@ export class ReservaForm {
       return "La salida debe ser posterior al ingreso.";
     const room = this.roomFor(i);
     if (room) {
+      if (room.precio <= 0) return 'La tarifa de esta habitación está pendiente. Configura el precio antes de registrar una reserva.';
+      if (room.estado !== "DISPONIBLE" || room.ocupadaActualmente)
+        return "La habitación no está disponible físicamente.";
+      if (this.yaElegida(room.idHabitacion, i))
+        return "Selecciona cada habitación una sola vez.";
+      if (
+        room.reservas.some(
+          (r) =>
+            r.estado === "EN_CURSO" ||
+            (new Date(line.fechaIngreso).getTime() <
+              new Date(r.salida).getTime() &&
+              new Date(line.fechaSalida).getTime() >
+                new Date(r.ingreso).getTime()),
+        )
+      )
+        return "La habitación ya tiene una reserva en este horario. Elige otra habitación o cambia las fechas.";
       const error = errorOcupacion(room, this.guests(i), line.fechaIngreso);
       if (error) return error;
     }
@@ -672,6 +737,10 @@ export class ReservaForm {
         return "Cada menor debe tener un padre, madre o tutor adulto en esta misma habitación.";
     }
     return "";
+  }
+  avisarErrorHabitacion(i: number) {
+    const error = this.lineError(i);
+    if (error) this.alertar(error);
   }
   actualizarCasillaCama(grupo: FormGroup) {
     const i = this.huespedEn();
@@ -701,11 +770,12 @@ export class ReservaForm {
       (sinCama === 1 ? " menor sin plaza propia" : " menores sin plaza propia")
     );
   }
-  notaCama() {
+  notaCama(grupo:FormGroup=this.guestForm) {
     const i = this.huespedEn();
+    if(i!==null&&grupo.get('fechaNacimiento')?.value&&!esMenorDeSiete(grupo.get('fechaNacimiento')!.value,this.habitaciones.at(i).get('fechaIngreso')!.value))return 'Desde los 7 años al ingresar se necesita una plaza de cama propia.';
     return i !== null && (this.roomFor(i)?.maxMenoresSinCama ?? 0) === 0
-      ? "Esta habitación no admite menores sin plaza propia. Su ocupación se configura desde Estado de habitaciones."
-      : "Puedes desmarcar la casilla para menores de 7 años al ingresar, dentro de los límites de esta habitación.";
+      ? "Esta habitación no admite menores sin plaza propia. Revisa sus límites en Configuraciones → Habitaciones."
+      : "Puedes desmarcar la casilla para un menor de 7 años al ingresar que comparta cama con su responsable. Máximo un menor adicional sin plaza propia por habitación.";
   }
   abrirHuesped(i: number) {
     this.editandoHuesped.set(null);
@@ -713,16 +783,16 @@ export class ReservaForm {
     this.menores.clear();
     this.menoresOriginales = [];
     this.anadirMenores.set(false);
-    this.guestError.set("");
     this.guestMensaje.set("");
     this.consultaHuespedId++;
     this.buscandoHuesped.set(false);
     this.guestForm.reset({
-      idTipoDocumento: this.catalogos()?.documentos[0]?.id,
+      idTipoDocumento: this.documentosPersonales()[0]?.id,
       idTipoOcupante: this.catalogos()?.ocupantes[0]?.id,
       numeroDocumento: "",
       nombres: "",
       apellidos: "",
+      telefono: "",
       fechaNacimiento: "",
       ocupaPlazaCama: true,
     });
@@ -774,19 +844,27 @@ export class ReservaForm {
     });
   }
   usarCliente() {
+    this.clienteClave = this.claveClienteActual();
     this.guestForm.patchValue(this.cliente.getRawValue());
   }
+  private claveClienteActual() {
+    return claveDocumento(this.cliente.getRawValue());
+  }
+  private alertar(mensaje: string) {
+    this.avisos.mostrar(mensaje, true);
+  }
   guardarHuesped() {
+    const index = this.huespedEn();
+    if (index === null) return;
     this.guestForm.markAllAsTouched();
     if (this.guestForm.invalid) {
-      this.guestError.set(
+      this.alertar(
         this.mensajeDocumento(this.guestForm) ||
           this.mensajeNacimiento(this.guestForm) ||
           "Completa el documento, nombres, apellidos y tipo de ocupante.",
       );
       return;
     }
-    const index = this.huespedEn()!;
     const v = this.guestForm.getRawValue();
     const editando = this.editandoHuesped();
     const anterior = editando === null ? null : this.guests(index)[editando];
@@ -795,7 +873,7 @@ export class ReservaForm {
       .get("fechaIngreso")!
       .value.slice(0, 10);
     if (!esAdulto(v.fechaNacimiento, ingreso) && !anterior?.responsable) {
-      this.guestError.set(
+      this.alertar(
         "Registra primero al adulto y usa «Añadir menores a su cargo» para incluir al menor.",
       );
       return;
@@ -808,7 +886,7 @@ export class ReservaForm {
         grupo.invalid ||
         esAdulto(grupo.get("fechaNacimiento")!.value, ingreso)
       ) {
-        this.guestError.set(
+        this.alertar(
           this.mensajeDocumento(grupo) ||
             this.mensajeNacimiento(grupo) ||
             "Completa los datos del menor y el parentesco; debe tener menos de 18 años al ingresar.",
@@ -816,25 +894,10 @@ export class ReservaForm {
         return;
       }
     }
-    const documentos = [v, ...this.menores.getRawValue()].map(
-      (p) => p.idTipoDocumento + ":" + p.numeroDocumento.trim(),
-    );
-    if (
-      new Set(documentos).size !== documentos.length ||
-      this.guests(index).some(
-        (g, gi) =>
-          gi !== editando &&
-          !this.menoresOriginales.some(
-            (m) => this.clavePersona(m) === this.clavePersona(g),
-          ) &&
-          documentos.includes(this.clavePersona(g)),
-      )
-    ) {
-      this.guestError.set(
-        "Una persona no puede agregarse dos veces a la misma habitación.",
-      );
-      return;
-    }
+    const titular = this.datosCliente();
+    const editaTitular = anterior !== null &&
+      this.clavePersona(anterior) === claveDocumento(titular) &&
+      !errorIdentidadesReserva(titular, [anterior.persona]);
     const persona: ClienteDatos = {
       idTipoDocumento: v.idTipoDocumento,
       numeroDocumento: v.numeroDocumento.trim(),
@@ -844,14 +907,18 @@ export class ReservaForm {
       fechaNacimiento: v.fechaNacimiento || null,
       razonSocial: null,
       direccionFiscal: null,
-      correo: anterior?.persona.correo || null,
-      telefono: anterior?.persona.telefono || null,
+      correo: editaTitular ? titular.correo : anterior?.persona.correo || null,
+      telefono: v.telefono?.trim() || null,
     };
     const menoresNuevos: Huesped[] = this.menores
       .getRawValue()
       .map((menor: any) => ({
         persona: {
-          ...(menor.personaAnterior || persona),
+          empresa: false,
+          razonSocial: null,
+          direccionFiscal: null,
+          correo: menor.personaAnterior?.correo ?? null,
+          telefono: menor.telefono?.trim() || null,
           idTipoDocumento: menor.idTipoDocumento,
           numeroDocumento: menor.numeroDocumento.trim(),
           nombres: menor.nombres.trim(),
@@ -874,11 +941,7 @@ export class ReservaForm {
       ocupaPlazaCama: v.ocupaPlazaCama !== false,
     };
     const base = this.guests(index).filter(
-      (g, gi) =>
-        gi !== editando &&
-        !this.menoresOriginales.some(
-          (m) => this.clavePersona(m) === this.clavePersona(g),
-        ),
+      (g, gi) => gi !== editando && !this.menoresOriginales.includes(g),
     );
     const posicion =
       editando === null ? base.length : Math.min(editando, base.length);
@@ -888,42 +951,34 @@ export class ReservaForm {
       ...menoresNuevos,
       ...base.slice(posicion),
     ];
+    const identidades = this.habitaciones.controls
+      .flatMap((_, i) => i === index ? candidatos : this.guests(i))
+      .map((g) => g.persona);
+    const identidadInvalida = errorIdentidadesReserva(editaTitular ? persona : titular, identidades);
+    if (identidadInvalida) {
+      this.alertar(identidadInvalida);
+      return;
+    }
     const room = this.roomFor(index);
     const error = room
       ? errorOcupacion(room, candidatos, ingreso)
       : "Selecciona una habitación.";
     if (error) {
-      this.guestError.set(error);
-      return;
-    }
-    if (anterior) {
-      const clave = this.clavePersona(anterior);
-      this.sincronizarPersona(clave, persona);
-      for (const menor of this.menores.getRawValue()) {
-        const original = this.menoresOriginales.find(
-          (m) => m.idHuesped != null && m.idHuesped === menor.idHuesped,
-        );
-        const nuevo = menoresNuevos.find(
-          (m) =>
-            m.persona.idTipoDocumento === menor.idTipoDocumento &&
-            m.persona.numeroDocumento === menor.numeroDocumento.trim(),
-        );
-        if (original && nuevo)
-          this.sincronizarPersona(this.clavePersona(original), nuevo.persona);
-      }
-      this.habitaciones.at(index).get("huespedes")!.setValue(candidatos);
-      if (clave === this.clienteClave) this.cliente.patchValue(persona);
-      this.huespedEn.set(null);
-      this.editandoHuesped.set(null);
+      this.alertar(error);
       return;
     }
     this.habitaciones.at(index).get("huespedes")!.setValue(candidatos);
+    if (editaTitular) {
+      this.clienteClave = claveDocumento(persona);
+      this.cliente.patchValue(persona);
+    }
     this.huespedEn.set(null);
+    this.editandoHuesped.set(null);
   }
   quitarHuesped(i: number, g: number) {
     const clave = this.clavePersona(this.guests(i)[g]);
     if (this.guests(i).some((h) => this.responsableSeleccionado(h) === clave)) {
-      this.error.set(
+      this.alertar(
         "Retira o reasigna primero a los menores a cargo de este adulto.",
       );
       return;
@@ -951,13 +1006,33 @@ export class ReservaForm {
     };
   }
   revisar() {
-    this.error.set("");
+    if (this.guardando() || this.registroIniciado()) return;
+    if (this.comprobando() || this.errorDisponibilidad()) {
+      this.alertar(
+        this.errorDisponibilidad() ||
+          "Espera a que termine la consulta de disponibilidad.",
+      );
+      return;
+    }
+    if (this.reservaService.registroPendiente?.()) {
+      this.alertar(
+        "Hay una reserva pendiente de confirmar. Recupérala desde la lista antes de registrar otra.",
+      );
+      return;
+    }
     this.form.markAllAsTouched();
+    const titular = this.datosCliente();
+    const huespedes = this.habitaciones.controls.flatMap((_, i) => this.guests(i).map((g) => g.persona));
+    const identidadInvalida = errorIdentidadesReserva(titular, huespedes);
+    if (identidadInvalida) {
+      this.alertar(identidadInvalida);
+      return;
+    }
     if (
       this.form.invalid ||
       this.habitaciones.controls.some((_, i) => this.lineError(i))
     ) {
-      this.error.set(
+      this.alertar(
         this.mensajeDocumento(this.cliente) ||
           this.mensajeNacimiento(this.cliente, true) ||
           this.habitaciones.controls
@@ -968,68 +1043,128 @@ export class ReservaForm {
       return;
     }
     if (!this.habitaciones.length) {
-      this.error.set("Agrega al menos una habitación.");
+      this.alertar("Agrega al menos una habitación.");
+      return;
+    }
+    if (
+      !this.idUsuario() ||
+      !this.catalogos()?.usuarios?.some((u) => u.id === this.idUsuario())
+    ) {
+      this.alertar("Selecciona al recepcionista que registra la reserva.");
       return;
     }
     this.solicitud = {
       claveRegistro: this.clave,
-      cliente: this.datosCliente(),
-      habitaciones: this.habitaciones.getRawValue(),
+      cliente: titular,
+      habitaciones: this.habitaciones
+        .getRawValue()
+        .map((h: Estancia, i: number) => ({
+          ...h,
+          costoEstadia: Math.round(this.costoLinea(i) * 100) / 100,
+        })),
       formaRegistro: "PENDIENTE",
       efectivoRecibido: null,
     };
-    if (this.ref()) {
-      this.guardarEdicion();
-      return;
-    }
-    this.errorPago.set("");
     this.pagoAbierto.set(true);
   }
-  confirmar(pago: {
-    forma: "EFECTIVO" | "PENDIENTE";
-    recibido: number | null;
-    monto?: number | null;
-  }) {
+  confirmar(pago: ConfirmacionPago) {
     if (this.guardando() || !this.solicitud) return;
+    if (pago.forma !== "PENDIENTE" && !pago.cobro) {
+      this.alertar("Selecciona un turno abierto y una forma de pago.");
+      return;
+    }
     this.guardando.set(true);
-    this.errorPago.set("");
-    const request = {
-      ...this.solicitud,
-      formaRegistro: pago.forma,
-      efectivoRecibido: pago.recibido,
-      montoPago: pago.monto,
-    };
-    this.reservaService.crear(request).subscribe({
-      next: (r) => {
-        this.guardando.set(false);
-        this.avisos.mostrar(
-          "Reserva #" +
-            r.numero +
-            " registrada" +
-            (r.estadoCobro !== "PAGADO"
-              ? " con saldo pendiente: S/ " + r.saldo.toFixed(2) + "."
-              : ". Pago confirmado. Vuelto: S/ " + r.vuelto.toFixed(2)),
-        );
-        void this.router.navigate(["/reservas"]);
-      },
-      error: (e) => {
-        this.guardando.set(false);
-        this.errorPago.set(mensajeError(e));
-      },
-    });
+    this.registroIniciado.set(true);
+    const preparar = this.solicitudApi
+      ? of(this.solicitudApi)
+      : this.reservaService.prepararRegistro(this.solicitud, this.idUsuario()!);
+    preparar
+      .pipe(
+        concatMap((request) => {
+          this.solicitudApi = request;
+          return this.reservaRegistrada()
+            ? of(this.reservaRegistrada()!)
+            : this.reservaService.crear(request);
+        }),
+        concatMap((reserva) => {
+          this.reservaRegistrada.set(reserva);
+          if (pago.forma === "PENDIENTE" && !this.pagoEnviado)
+            return this.reservaService.cuenta(reserva.idReserva);
+          this.pagoEnviado ??= structuredClone(pago);
+          this.pagoFijado.set(true);
+          return this.reservaService.pagar(
+            reserva.idReserva,
+            this.clavePago,
+            this.pagoEnviado.monto!,
+            this.pagoEnviado.cobro!,
+          );
+        }),
+        takeUntilDestroyed(this.destroy),
+      )
+      .subscribe({
+        next: (cuenta) => {
+          this.guardando.set(false);
+          this.avisos.mostrar(
+            "Reserva " +
+              cuenta.numeroReserva +
+              " registrada. Saldo: S/ " +
+              cuenta.saldoPendiente.toFixed(2) +
+              (this.pagoEnviado
+                ? ". Vuelto: S/ " +
+                  Math.max(
+                    0,
+                    (this.pagoEnviado.recibido ?? this.pagoEnviado.monto!) -
+                      this.pagoEnviado.monto!,
+                  ).toFixed(2)
+                : ""),
+          );
+          void this.router.navigate(["/reservas"], {queryParams:{comprobante:cuenta.idReserva}});
+        },
+        error: (e) => {
+          this.guardando.set(false);
+          if (!this.solicitudApi) this.registroIniciado.set(false);
+          if (this.reservaRegistrada() && e.status >= 400 && e.status < 500) {
+            this.pagoEnviado = null;
+            this.pagoFijado.set(false);
+            this.clavePago = crypto.randomUUID();
+          }
+          // Un 4xx confirma que la operación fue rechazada. Los fallos de red
+          // conservan la solicitud y su clave para consultar/reintentar sin duplicar.
+          if (!this.reservaRegistrada() && e.status >= 400 && e.status < 500) {
+            this.registroIniciado.set(false);
+            this.solicitudApi = null;
+            this.clave = crypto.randomUUID();
+          }
+          this.alertar(
+            (this.reservaRegistrada()
+              ? "Reserva R" +
+                this.reservaRegistrada()!.idReserva +
+                " guardada. El cobro aún no está confirmado. Reintenta el mismo pago o consulta la reserva. "
+              : "") +
+              (e instanceof Error && !("status" in e)
+                ? e.message
+                : mensajeError(e)),
+          );
+        },
+      });
   }
-  private guardarEdicion() {
-    this.guardando.set(true);
-    this.reservaService.actualizar(this.ref()!, this.solicitud!).subscribe({
-      next: (r) => {
-        this.guardando.set(false);
-        this.avisos.mostrar("Reserva #" + r.numero + " actualizada.");
-        void this.router.navigate(["/reservas"]);
-      },
-      error: (e) => {
-        this.guardando.set(false);
-        this.error.set(mensajeError(e));
-      },
-    });
+  cerrarPago() {
+    if (this.pagoFijado()) {
+      this.alertar(
+        "El pago está pendiente de confirmar. Reintenta el mismo pago; también puedes recuperarlo desde la lista si recargas la página.",
+      );
+      return;
+    }
+    if (this.reservaRegistrada()) {
+      void this.router.navigate(["/reservas"]);
+      return;
+    }
+    if (this.registroIniciado()) {
+      this.alertar(
+        "La confirmación está pendiente. Reintenta con los mismos datos para recuperar la reserva sin duplicarla.",
+      );
+      return;
+    }
+    this.pagoAbierto.set(false);
   }
 }

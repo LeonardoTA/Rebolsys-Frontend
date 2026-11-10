@@ -1,4 +1,4 @@
-<div class="app-shell" [class.menu-open]="!menuColapsado()">
+<div class="app-shell" [class.menu-open]="!menuColapsado()" (keydown.escape)="menuColapsado.set(true)">
   <app-sidebar (navegar)="menuColapsado.set(true)" />
   @if (!menuColapsado()) {
     <button
@@ -8,7 +8,7 @@
     ></button>
   }
   <div class="workspace">
-    <app-header (toggleMenu)="alternarMenu()" />
+    <app-header [menuAbierto]="!menuColapsado()" (toggleMenu)="alternarMenu()" />
     <main><router-outlet /></main>
   </div>
 </div>

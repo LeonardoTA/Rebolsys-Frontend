@@ -1,9 +1,9 @@
-import { ClienteDatos, Cliente } from '../../clientes/models/cliente.model';
+import { ClienteDatos, Cliente } from "../../clientes/models/cliente.model";
 
 export interface ResponsableHuesped {
   idTipoDocumento: number;
   numeroDocumento: string;
-  parentesco: 'PADRE' | 'MADRE' | 'TUTOR';
+  parentesco: "PADRE" | "MADRE" | "TUTOR";
 }
 
 export interface Huesped {
@@ -19,13 +19,14 @@ export interface Estancia {
   fechaIngreso: string;
   fechaSalida: string;
   huespedes: Huesped[];
+  costoEstadia?: number;
 }
 
 export interface Registro {
   claveRegistro: string;
   cliente: ClienteDatos;
   habitaciones: Estancia[];
-  formaRegistro: 'EFECTIVO' | 'PENDIENTE';
+  formaRegistro: "EFECTIVO" | "PENDIENTE";
   efectivoRecibido: number | null;
   montoPago?: number | null;
 }

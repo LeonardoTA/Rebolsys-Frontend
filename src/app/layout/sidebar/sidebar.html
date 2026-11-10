@@ -1,4 +1,4 @@
-<aside class="sidebar no-print">
+<aside id="menu-principal" class="sidebar no-print">
   <a
     class="brand"
     routerLink="/inicio"
@@ -26,16 +26,44 @@
     <span>Gestión de hospedaje</span>
   </a>
   <nav aria-label="Menú principal">
-    @for (item of menu; track item.ruta) {
-      <a
-        [routerLink]="item.ruta"
-        routerLinkActive="active"
-        (click)="navegar.emit()"
+    @for (item of menu(); track item.ruta) { @if (item.hijos) {
+    <div class="menu-group">
+      <button
+        class="menu-group-button"
+        [attr.aria-expanded]="configuracionAbierta()"
+        aria-controls="configuracion-submenu"
+        (click)="alternarConfiguracion()"
       >
-        <app-icon [name]="item.icono" /><span>{{ item.etiqueta }}</span
-        ><app-icon class="chevron" name="chevron" />
-      </a>
-    }
+        <app-icon [name]="item.icono" /><span>{{item.etiqueta}}</span>
+        <app-icon
+          class="group-chevron"
+          [class.expanded]="configuracionAbierta()"
+          name="chevron"
+        />
+      </button>
+      @if (configuracionAbierta()) {
+      <div id="configuracion-submenu" class="submenu">
+        @for (hijo of item.hijos; track hijo.ruta) {
+        <a
+          [routerLink]="hijo.ruta"
+          routerLinkActive="active"
+          (click)="navegar.emit()"
+          ><app-icon [name]="hijo.icono" /><span>{{hijo.etiqueta}}</span></a
+        >
+        }
+      </div>
+      }
+    </div>
+    } @else {
+    <a
+      [routerLink]="item.ruta"
+      routerLinkActive="active"
+      (click)="navegar.emit()"
+    >
+      <app-icon [name]="item.icono" /><span>{{ item.etiqueta }}</span
+      ><app-icon class="chevron" name="chevron" />
+    </a>
+    } }
   </nav>
   <p class="sidebar-footer">REBOLSYS · Real Bolognesi<br />Huaraz, Perú</p>
 </aside>

@@ -8,8 +8,7 @@
   <span class="spinner"></span>Preparando el formulario…
 </div>
 } @else if (errorCarga()) {
-<div class="error-state panel" role="alert">
-  <p>{{ errorCarga() }}</p>
+<div class="error-state panel">
   <button class="button" (click)="cargar()">Reintentar</button>
 </div>
 } @else {
@@ -24,6 +23,7 @@
         </div>
         <app-icon name="users" />
       </div>
+      <p class="inline-note">Usuario actual: {{catalogos()?.usuarios?.[0]?.nombre}}</p>
       <div formGroupName="cliente">
         <div class="identity-switch">
           <label
@@ -31,7 +31,6 @@
               type="radio"
               formControlName="empresa"
               [value]="false"
-              [attr.disabled]="ref() ? true : null"
               (change)="validarCliente()"
             />Persona natural</label
           ><label
@@ -39,7 +38,6 @@
               type="radio"
               formControlName="empresa"
               [value]="true"
-              [attr.disabled]="ref() ? true : null"
               (change)="validarCliente()"
             />Empresa</label
           >
@@ -122,19 +120,8 @@
       </div>
       @if (clienteMensaje()) {
       <p class="inline-note"><app-icon name="info" />{{ clienteMensaje() }}</p>
-      } @if (ref()) {
-      <p class="inline-note">
-        Puedes corregir el cliente y los huéspedes. Sus fichas son compartidas;
-        los comprobantes emitidos conservan los datos originales.
-      </p>
       }
     </section>
-    @if (conPagos()) {
-    <p class="inline-note">
-      Esta reserva tiene pagos. Puedes editar al cliente y los huéspedes; sus
-      habitaciones, fechas e importes se conservan.
-    </p>
-    }
     <section class="room-form-section">
       <div class="section-heading standalone">
         <span class="section-number">02</span>
@@ -155,7 +142,7 @@
             <button
               type="button"
               class="text-button remove-button"
-              [disabled]="conPagos() || habitaciones.length === 1"
+              [disabled]="habitaciones.length === 1"
               (click)="quitarHabitacion(i)"
             >
               <app-icon name="close" />Quitar
@@ -164,18 +151,18 @@
           <div class="form-grid">
             <label class="field"
               >Número de habitación <span class="required">*</span
-              ><select formControlName="idHabitacion">
+              ><select formControlName="idHabitacion" (change)="avisarErrorHabitacion(i)">
                 <option [ngValue]="null">Seleccionar habitación</option>
                 @for (r of rooms(); track r.idHabitacion) {
                 <option
                   [ngValue]="r.idHabitacion"
                   [disabled]="
                           r.estado !== 'DISPONIBLE' ||
-                          yaElegida(r.idHabitacion, i)
+                          r.ocupadaActualmente || r.precio <= 0 || yaElegida(r.idHabitacion, i)
                         "
                 >
-                  {{ r.numero }} · {{ r.tipo }} · {{ r.precio | currency : "PEN"
-                  : "S/ " : "1.0-2" }} / noche{{ r.estado !== "DISPONIBLE" ? " ·
+                  {{ r.numero }} · {{ r.tipo }} · {{ r.precio > 0 ? (r.precio | currency : "PEN"
+                  : "S/ " : "1.0-2") + ' / noche' : 'Tarifa pendiente' }}{{ r.estado !== "DISPONIBLE" ? " ·
                   " + r.estado : "" }}
                 </option>
                 }
@@ -198,15 +185,13 @@
               >Ingreso <span class="required">*</span
               ><input
                 type="datetime-local"
+                (change)="avisarErrorHabitacion(i)"
                 formControlName="fechaIngreso" /></label
             ><label class="field"
               >Salida <span class="required">*</span
-              ><input type="datetime-local" formControlName="fechaSalida"
+              ><input type="datetime-local" formControlName="fechaSalida" (change)="avisarErrorHabitacion(i)"
             /></label>
           </div>
-          @if (lineError(i)) {
-          <p class="field-error">{{ lineError(i) }}</p>
-          }
           <div class="room-stay-summary">
             <span
               >{{ nochesLinea(i) }} {{ nochesLinea(i) === 1 ? "noche" : "noches"
@@ -224,7 +209,10 @@
                 ><app-icon name="users" />Huéspedes
                 <span class="count-chip">{{ guests(i).length }}</span></strong
               >
-              <p>Registra las personas que se alojarán en esta habitación.</p>
+              <p>
+                Puedes registrar los huéspedes ahora o completarlos antes del
+                check-in.
+              </p>
             </div>
             <button
               type="button"
@@ -306,7 +294,7 @@
       <button
         type="button"
         class="add-room-button"
-        [disabled]="conPagos() || habitaciones.length >= rooms().length"
+        [disabled]="habitaciones.length >= rooms().length"
         (click)="agregarHabitacion()"
       >
         <app-icon name="plus" />Agregar nueva habitación
@@ -331,32 +319,36 @@
       </div>
       }
     </div>
-    @if (totalConsumos() > 0) {
-    <p class="inline-note">
-      Incluye consumos de tienda: {{ totalConsumos() | currency: "PEN" : "S/ "
-      }}. Sus cantidades se consultan desde la lista de reservas.
-    </p>
-    }
     <div class="summary-total">
       <span>Total de la reserva</span
       ><strong>{{ total() | currency: "PEN" : "S/ " : "1.2-2" }}</strong
-      ><small>Importe calculado por estancia</small>
+      ><small>Precios con impuesto incluido</small>
     </div>
     <p class="summary-note">
       <app-icon name="info" />La disponibilidad y el importe final se comprueban
       al confirmar.
     </p>
-    @if (error()) {
-    <p class="error-box" role="alert">{{ error() }}</p>
+    @if (comprobando()) {
+    <p class="inline-note" role="status">Comprobando disponibilidad…</p>
+    } @if (errorDisponibilidad()) {
+    <button
+      type="button"
+      class="button full"
+      (click)="actualizarDisponibilidad()"
+    >
+      Reintentar disponibilidad
+    </button>
     }
-    <button class="button primary full" type="submit" [disabled]="guardando()">
-      <app-icon name="check" />{{ guardando() ? "Guardando…" : ref() ? "Guardar
-      cambios" : "Agregar reserva" }}</button
+    <button
+      class="button primary full"
+      type="submit"
+      [disabled]="guardando() || comprobando() || registroIniciado()"
+    >
+      <app-icon name="check" />{{ guardando() ? "Guardando…" : "Agregar reserva"
+      }}</button
     ><a routerLink="/reservas" class="button danger full">Cancelar reserva</a
     ><span class="summary-footer"
-      >{{ ref() ? "Puedes editar personas; con pagos, se conservan habitaciones,
-      fechas e importes." : "Podrás pagar en efectivo o dejar el cobro
-      pendiente." }}</span
+      >Podrás realizar abonos, pagar el total o dejar el cobro pendiente.</span
     >
   </aside>
 </form>
@@ -364,8 +356,11 @@
 <app-pago-modal
   [total]="total()"
   [ocupado]="guardando()"
-  [error]="errorPago()"
-  (cerrar)="pagoAbierto.set(false)"
+  [catalogos]="catalogos()"
+  [idUsuario]="idUsuario()"
+  [solicitudFijada]="pagoFijado()"
+  [puedePosponer]="!pagoFijado()"
+  (cerrar)="cerrarPago()"
   (confirmar)="confirmar($event)"
 />
 } @if (huespedEn() !== null) {
@@ -433,15 +428,12 @@
           >Fecha de nacimiento<input
             type="date"
             [max]="hoy"
-            formControlName="fechaNacimiento" /></label
-        ><label class="field"
-          >Tipo de ocupante<select formControlName="idTipoOcupante">
-            <option [ngValue]="null">Seleccionar</option>
-            @for (t of catalogos()?.ocupantes; track t.id) {
-            <option [ngValue]="t.id">{{ t.nombre }}</option>
-            }
-          </select></label
-        >
+            formControlName="fechaNacimiento"
+        /></label>
+        <label class="field"
+          >Celular <span class="optional">Opcional</span>
+          <input type="tel" formControlName="telefono" maxlength="15" placeholder="Ej. 987 654 321" />
+        </label>
       </div>
       @if (puedeEditarMenores()) {
       <label class="minor-toggle"
@@ -459,7 +451,7 @@
       </p>
       } @if (editandoHuesped() !== null) {
       <label class="minor-toggle"
-        ><input type="checkbox" formControlName="ocupaPlazaCama" />Requiere una
+        ><input type="checkbox" formControlName="ocupaPlazaCama" />Ocupa una
         plaza de cama propia</label
       >
       <p class="muted">{{ notaCama() }}</p>
@@ -521,18 +513,15 @@
             </select></label
           >
           <label class="field"
-            >Tipo de ocupante<select formControlName="idTipoOcupante">
-              @for (t of catalogos()?.ocupantes; track t.id) {
-              <option [ngValue]="t.id">{{ t.nombre }}</option>
-              }
-            </select></label
-          >
+            >Celular <span class="optional">Opcional</span>
+            <input type="tel" formControlName="telefono" maxlength="15" placeholder="Ej. 987 654 321" />
+          </label>
         </div>
         <label class="minor-toggle"
-          ><input type="checkbox" formControlName="ocupaPlazaCama" />Requiere
+          ><input type="checkbox" formControlName="ocupaPlazaCama" />Ocupa
           una plaza de cama propia</label
         >
-        <p class="muted">{{ notaCama() }}</p>
+        <p class="muted">{{ notaCama(grupoMenor(mi)) }}</p>
       </section>
       }
       <button class="button small" type="button" (click)="agregarMenor()">
@@ -540,8 +529,6 @@
       </button>
       } @if (guestMensaje()) {
       <p class="inline-note">{{ guestMensaje() }}</p>
-      } @if (guestError()) {
-      <p class="error-box" role="alert">{{ guestError() }}</p>
       }
       <div class="modal-actions">
         <button class="button" type="button" (click)="huespedEn.set(null)">

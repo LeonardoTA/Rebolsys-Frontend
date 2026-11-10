@@ -8,6 +8,6 @@ export class NotificacionService {
   mostrar(texto: string, error = false): void {
     clearTimeout(this.timer);
     this.actual.set({ texto, error });
-    this.timer = setTimeout(() => this.actual.set(null), 6000);
+    this.timer = setTimeout(() => this.actual.set(null), error ? 8000 : 6000);
   }
 }

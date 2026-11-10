@@ -52,13 +52,20 @@
     </p>
   </div>
   } @else {
-  <h3>CONSTANCIA DE CONSUMO</h3>
+  <h3>
+    {{venta().modoVenta==='SEPARADA'?'CONSTANCIA DE VENTA':'CONSTANCIA DE
+    CONSUMO'}}
+  </h3>
   <p class="numero">Venta #{{ venta().numero }}</p>
   <div class="datos">
     <span>Fecha</span
     ><span>{{ venta().fechaVenta | date: 'dd/MM/yyyy HH:mm' }}</span
-    ><span>Comprador</span><span>{{ venta().compradorNombre }}</span
-    ><span>Habitación</span><span>{{ venta().habitacion }}</span>
+    ><span>Comprador</span
+    ><span>{{ venta().compradorNombre }}</span>@if(venta().habitacion){<span
+      >Habitación</span
+    ><span>{{ venta().habitacion }}</span>}@if(venta().referenciaReserva){<span
+      >Reserva</span
+    ><span>{{venta().referenciaReserva}}</span>}
   </div>
   <table>
     <thead>
@@ -83,12 +90,25 @@
   </table>
   <div class="totales">
     <p>
-      <span>Total pendiente</span
+      <span>Total de la venta</span
       ><strong>{{ venta().total | currency: 'PEN' : 'S/ ' }}</strong>
     </p>
+    @if(venta().modoVenta==='SEPARADA'){
+    <p>
+      <span>Pagado</span
+      ><strong>{{venta().pagado??0|currency:'PEN':'S/ '}}</strong>
+    </p>
+    <p>
+      <span>Saldo</span
+      ><strong>{{venta().saldo??venta().total|currency:'PEN':'S/ '}}</strong>
+    </p>
+    }
   </div>
   <p class="pendiente">
-    Añadido a la cuenta de la reserva. Esta constancia no acredita un pago.
+    {{venta().modoVenta==='CARGO_RESERVA'?'Añadido a la cuenta de la reserva.
+    Esta constancia no acredita un pago.':'Constancia interna del pago
+    registrado. La boleta o factura requiere emitir el comprobante con los datos
+    del receptor.'}}
   </p>
   }
   <footer>

@@ -1,5 +1,6 @@
 :host {
   display: block;
+  min-width: 0;
 }
 .calendar-panel {
   background: transparent;
@@ -14,6 +15,8 @@
   justify-content: center;
   gap: 24px;
   flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 .floor-tabs button {
   border: 0;
@@ -41,6 +44,7 @@
   background: white;
   padding: 5px;
   border-radius: 9px;
+  max-width: 100%;
 }
 .date-selector input {
   width: 138px;
@@ -64,6 +68,7 @@
 }
 .legend {
   display: flex;
+  flex-wrap: wrap;
   gap: 18px;
   font-size: 13px;
 }
@@ -87,6 +92,12 @@
 .calendar-scroll {
   overflow: auto;
   background: white;
+  max-width: 100%;
+  overscroll-behavior-x: contain;
+}
+.calendar-scroll:focus-visible {
+  outline: 3px solid #318ee4;
+  outline-offset: 3px;
 }
 .room-calendar {
   min-width: 900px;
@@ -146,12 +157,14 @@
   font-weight: 700;
   font-size: 17px;
   display: block;
+  overflow-wrap: anywhere;
 }
 .room-kind {
   display: block;
   color: #777;
   margin-top: 7px;
   font-size: 14px;
+  overflow-wrap: anywhere;
 }
 .room-info > p {
   display: flex;
@@ -244,6 +257,9 @@
 }
 @media (max-width: 700px) {
   .floor-tabs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
+    flex: 1 1 100%;
     gap: 10px;
     width: 100%;
   }
@@ -269,15 +285,34 @@
     gap: 12px;
   }
   .room-calendar {
-    min-width: 1050px;
+    min-width: 900px;
   }
   .calendar-header {
-    grid-template-columns: 215px repeat(7, minmax(0, 1fr));
+    grid-template-columns: 170px repeat(7, minmax(0, 1fr));
   }
   .calendar-row {
-    grid-template-columns: 215px minmax(0, 1fr);
+    grid-template-columns: 170px minmax(0, 1fr);
   }
   .room-info {
-    padding: 15px;
+    padding: 14px 12px;
+  }
+  .room-bottom {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+@media (max-width: 400px) {
+  .calendar-navigation {
+    gap: 4px;
+  }
+  .calendar-navigation .icon-button {
+    width: 32px;
+  }
+  .date-selector input {
+    width: 130px;
+    min-width: 0;
+  }
+  .calendar-navigation .button {
+    padding-inline: 9px;
   }
 }

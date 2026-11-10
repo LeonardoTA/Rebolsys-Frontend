@@ -3,9 +3,9 @@
     <h2>Historial de ventas</h2>
     <p class="muted">Ventas separadas y consumos añadidos a reservas.</p>
   </div>
-  <a routerLink="/ventas" class="button primary"
+  @if (acceso.permite('VENTAS:CREAR_Y_CONFIRMAR')) { <a routerLink="/ventas" class="button primary"
     ><app-icon name="plus" />Nueva venta</a
-  >
+  > }
 </div>
 <section class="panel">
   @if (cargando()) {

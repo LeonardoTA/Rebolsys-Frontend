@@ -1,10 +1,20 @@
 :host {
   display: block;
+  min-width: 0;
 }
 .app-shell {
+  --sidebar-width: 280px;
   min-height: 100vh;
+  min-width: 0;
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+}
+app-sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--sidebar-width);
+  height: 100dvh;
+  z-index: 50;
 }
 .workspace {
   grid-column: 2;
@@ -18,7 +28,7 @@ main {
 }
 @media (min-width: 1700px) {
   .app-shell {
-    grid-template-columns: 320px minmax(0, 1fr);
+    --sidebar-width: 320px;
   }
   main {
     padding: 32px 38px;
@@ -32,13 +42,16 @@ main {
     grid-column: 1;
   }
   app-sidebar {
-    position: fixed;
-    z-index: 50;
+    width: min(var(--sidebar-width), calc(100vw - 32px));
     transform: translateX(-100%);
-    transition: transform 0.2s;
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 0.2s, visibility 0.2s;
   }
   .menu-open app-sidebar {
     transform: none;
+    visibility: visible;
+    pointer-events: auto;
   }
   .menu-backdrop {
     display: block;
@@ -47,9 +60,15 @@ main {
     background: #0006;
     border: 0;
     z-index: 40;
+    touch-action: none;
   }
   main {
     padding: 24px 18px;
+  }
+}
+@media (max-width: 400px) {
+  main {
+    padding: 18px 12px;
   }
 }
 @media print {

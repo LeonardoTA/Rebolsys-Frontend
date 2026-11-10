@@ -1,4 +1,5 @@
 import { Component, inject, signal } from "@angular/core";
+import { PermisosUi } from "../../../../core/services/permisos-ui";
 import { CurrencyPipe, DatePipe } from "@angular/common";
 import { RouterLink } from "@angular/router";
 import { VentaService } from "../../services/venta-service";
@@ -13,6 +14,7 @@ import { Icon } from "../../../../shared/components/icono/icono";
   styleUrl: "./venta-list.css",
 })
 export class VentaList {
+  readonly acceso = inject(PermisosUi);
   private servicio = inject(VentaService);
   respuesta = signal<Pagina<Venta> | null>(null);
   error = signal("");

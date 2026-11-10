@@ -3,119 +3,164 @@
     <h2>Productos de la tiendita</h2>
     <p class="muted">Precios, existencias y catálogo de venta.</p>
   </div>
-  <a routerLink="/productos/nuevo" class="button primary"
-    ><app-icon name="plus" />Agregar producto</a
-  >
+  <div class="detail-actions-row">
+    @if (sesion.permite("PRODUCTOS:CREAR_CATEGORIA")) {
+      <button type="button" class="button" (click)="categoriasAbiertas.set(true)">
+        Crear categoría
+      </button>
+    }
+    @if (sesion.permite("PRODUCTOS:CREAR")) {
+      <a routerLink="/configuraciones/productos/nuevo" class="button primary">
+        <app-icon name="plus" />Agregar producto
+      </a>
+    }
+  </div>
 </div>
+
 <section class="panel">
   <div class="panel-toolbar">
     <div class="search-field">
-      <app-icon name="search" /><input
+      <app-icon name="search" />
+      <input
         aria-label="Buscar productos"
         [(ngModel)]="buscar"
         (keyup.enter)="filtrar()"
         placeholder="Buscar producto…"
       />
     </div>
-    <select
-      aria-label="Filtrar categoría"
-      [(ngModel)]="categoria"
-      (change)="filtrar()"
-    >
-      <option [ngValue]="null">Todas las categorías</option>
-      @for (c of categorias(); track c.idCategoria) {
-        <option [ngValue]="c.idCategoria">{{ c.nombreCategoria }}</option>
-      }</select
-    ><select
-      aria-label="Filtrar estado"
-      [(ngModel)]="estado"
-      (change)="filtrar()"
-    >
-      <option value="">Todos los estados</option>
-      <option value="ACTIVO">Activos</option>
-      <option value="INACTIVO">Inactivos</option></select
-    ><button class="button" (click)="filtrar()">Buscar</button>
-  </div>
-  @if (cargando()) {
-    <div class="loading-state">
-      <span class="spinner"></span>Cargando productos…
+
+    <div class="filter-controls">
+      <select aria-label="Filtrar por categoría" [(ngModel)]="categoria" (change)="filtrar()">
+        <option [ngValue]="null">Todas las categorías</option>
+        @for (c of categorias(); track c.idCategoria) {
+          <option [ngValue]="c.idCategoria">{{ c.nombreCategoria }}</option>
+        }
+      </select>
+
+      <select aria-label="Filtrar por estado" [(ngModel)]="estado" (change)="filtrar()">
+        <option value="">Todos los estados</option>
+        <option value="ACTIVO">Activos</option>
+        <option value="INACTIVO">Inactivos</option>
+      </select>
+
+      <select
+        aria-label="Filtrar por nivel de existencias"
+        [(ngModel)]="stockBajo"
+        (change)="filtrar()"
+      >
+        <option [ngValue]="null">Todos los inventarios</option>
+        <option [ngValue]="true">Sólo stock bajo</option>
+      </select>
+
+      <button class="button" (click)="filtrar()">Buscar</button>
     </div>
+  </div>
+
+  @if (cargando()) {
+    <div class="loading-state"><span class="spinner"></span>Cargando productos…</div>
   } @else if (error()) {
     <div class="error-state" role="alert">
       <p>{{ error() }}</p>
       <button class="button" (click)="cargar()">Reintentar</button>
     </div>
   } @else {
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th>PRODUCTO</th>
-            <th>CATEGORÍA</th>
-            <th>PRECIO</th>
-            <th>EXISTENCIAS</th>
-            <th>ESTADO</th>
-            <th>ACCIONES</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (p of respuesta()?.contenido; track p.idProducto) {
-            <tr>
-              <td>
-                <strong>{{ p.nombreProducto }}</strong
-                ><small>#{{ p.idProducto }}</small>
-              </td>
-              <td>{{ p.categoriaNombre }}</td>
-              <td>{{ p.precioActual | currency: 'PEN' : 'S/ ' }}</td>
-              <td>
-                <strong [class.low-stock]="p.stock <= p.stockMinimo"
-                  >{{ p.stock }} unidades</strong
-                ><small>Mínimo: {{ p.stockMinimo }}</small>
-              </td>
-              <td>
-                <span
-                  class="badge"
-                  [class.confirmada]="p.estadoProducto === 'ACTIVO'"
-                  >{{
-                    p.estadoProducto === 'ACTIVO' ? 'Activo' : 'Inactivo'
-                  }}</span
+    <div class="catalog-container">
+      <div class="products-grid">
+        @for (p of respuesta()?.contenido; track p.idProducto) {
+          <article class="product-card" [class.product-inactivo]="p.estadoProducto === 'INACTIVO'">
+            <div class="product-card-media">
+              <img
+                [src]="imagen(p)"
+                (error)="marcarImagenFallida(p.idProducto)"
+                [alt]="p.nombreProducto"
+                loading="lazy"
+              />
+              <span
+                class="badge product-card-badge"
+                [class.confirmada]="p.estadoProducto === 'ACTIVO'"
+                [class.cancelada]="p.estadoProducto === 'INACTIVO'"
+              >
+                {{ p.estadoProducto === "ACTIVO" ? "Activo" : "Inactivo" }}
+              </span>
+            </div>
+
+            <div class="product-card-body">
+              <div class="product-card-meta">
+                <span class="product-card-cat">{{ p.categoriaNombre }}</span>
+                <span class="product-card-code">#{{ p.idProducto }}</span>
+              </div>
+
+              <h3 class="product-card-title" [title]="p.nombreProducto">
+                {{ p.nombreProducto }}
+              </h3>
+
+              <div class="product-card-pricing-stock">
+                <span class="product-card-price">
+                  {{ p.precioActual | currency: "PEN" : "S/ " }}
+                </span>
+                <div class="product-card-stock">
+                  <span class="stock-qty" [class.low-stock]="esStockBajo(p)">
+                    {{ p.stock }} unid.
+                  </span>
+                  <small class="stock-min">Mín: {{ p.stockMinimo }}</small>
+                </div>
+              </div>
+
+              @if (esStockBajo(p) && p.estadoProducto === "ACTIVO") {
+                <div class="product-card-alert">
+                  <app-icon name="info" />
+                  <span>Stock bajo (mín: {{ p.stockMinimo }})</span>
+                </div>
+              }
+
+              <div class="product-card-actions">
+                <button
+                  type="button"
+                  class="button small btn-detail"
+                  (click)="abrirDetalle(p)"
+                  title="Ver detalle completo y movimientos"
                 >
-              </td>
-              <td>
-                <div class="acciones">
+                  Ver detalle
+                </button>
+
+                @if (sesion.permite("PRODUCTOS:EDITAR")) {
                   <a
-                    class="button small"
-                    [routerLink]="['/productos', p.idProducto, 'editar']"
-                    ><app-icon name="edit" />Editar</a
-                  ><button
-                    class="button small danger"
+                    class="button small btn-edit"
+                    [routerLink]="['/configuraciones/productos', p.idProducto, 'editar']"
+                  >
+                    <app-icon name="edit" />Editar
+                  </a>
+                }
+
+                @if (sesion.permite("PRODUCTOS:ELIMINAR")) {
+                  <button
+                    type="button"
+                    class="button small danger btn-retire"
                     [disabled]="p.estadoProducto === 'INACTIVO'"
-                    (click)="modalError.set(''); desactivando.set(p)"
+                    (click)="iniciarDesactivacion(p)"
+                    title="Retirar de venta"
                   >
-                    Desactivar
+                    Retirar
                   </button>
-                </div>
-              </td>
-            </tr>
-          } @empty {
-            <tr>
-              <td colspan="6">
-                <div class="empty-state">
-                  <app-icon name="box" />
-                  <h3>Aún no hay productos para mostrar</h3>
-                  <p>
-                    Agrega tus productos y categorías desde el mantenimiento.
-                  </p>
-                  <a class="button primary" routerLink="/productos/nuevo"
-                    >Agregar producto</a
-                  >
-                </div>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
+                }
+              </div>
+            </div>
+          </article>
+        } @empty {
+          <div class="empty-state span-all">
+            <app-icon name="box" />
+            <h3>Aún no hay productos para mostrar</h3>
+            <p>Agrega tus productos y categorías desde el mantenimiento.</p>
+            @if (sesion.permite("PRODUCTOS:CREAR")) {
+              <a class="button primary" routerLink="/configuraciones/productos/nuevo">
+                <app-icon name="plus" />Agregar producto
+              </a>
+            }
+          </div>
+        }
+      </div>
     </div>
+
     <div class="pagination">
       <span>{{ respuesta()?.totalElementos || 0 }} productos</span>
       <div>
@@ -124,11 +169,13 @@
           [disabled]="pagina === 0"
           (click)="pagina = pagina - 1; cargar()"
         >
-          Anterior</button
-        ><span
-          >Página {{ respuesta()?.totalPaginas ? pagina + 1 : 0 }} de
-          {{ respuesta()?.totalPaginas || 0 }}</span
-        ><button
+          Anterior
+        </button>
+        <span>
+          Página {{ respuesta()?.totalPaginas ? pagina + 1 : 0 }} de
+          {{ respuesta()?.totalPaginas || 0 }}
+        </span>
+        <button
           class="button small"
           [disabled]="respuesta()?.ultima ?? true"
           (click)="pagina = pagina + 1; cargar()"
@@ -139,6 +186,8 @@
     </div>
   }
 </section>
+
+<!-- Modal: Retirar de venta / Desactivar producto -->
 @if (desactivando(); as p) {
   <div class="modal-backdrop" (click)="!ocupado() && desactivando.set(null)">
     <section
@@ -150,29 +199,342 @@
       aria-labelledby="desactivar-titulo"
       (click)="$event.stopPropagation()"
     >
-      <h2 id="desactivar-titulo">Desactivar producto</h2>
+      <div class="modal-header">
+        <h2 id="desactivar-titulo">Retirar producto de venta</h2>
+        <button
+          type="button"
+          class="icon-button"
+          [disabled]="ocupado()"
+          (click)="desactivando.set(null)"
+          aria-label="Cerrar modal"
+        >
+          <app-icon name="close" />
+        </button>
+      </div>
+
       <p>
-        {{ p.nombreProducto }} dejará de aparecer en nuevas ventas. Las ventas y
-        movimientos anteriores se conservarán.
+        ¿Estás seguro de retirar <strong>{{ p.nombreProducto }}</strong> (#{{ p.idProducto }}) de la
+        oferta comercial?
       </p>
+      <p class="muted">
+        El producto quedará inactivo y dejará de aparecer en ventas. Todas las ventas y movimientos
+        de inventario históricos se conservarán para auditoría.
+      </p>
+
       @if (modalError()) {
-        <p class="error-box">{{ modalError() }}</p>
+        <p class="error-box" role="alert">{{ modalError() }}</p>
       }
+
       <div class="modal-actions">
         <button
+          type="button"
           class="button"
           [disabled]="ocupado()"
           (click)="desactivando.set(null)"
         >
-          Volver</button
-        ><button
-          class="button danger"
-          [disabled]="ocupado()"
-          (click)="desactivar()"
-        >
-          Desactivar
+          Cancelar
+        </button>
+        <button type="button" class="button danger" [disabled]="ocupado()" (click)="desactivar()">
+          {{ ocupado() ? "Retirando…" : "Retirar producto" }}
         </button>
       </div>
     </section>
   </div>
+}
+
+<!-- Modal: Detalle completo y movimientos de inventario -->
+@if (detalleProducto(); as prod) {
+  <div class="modal-backdrop" (click)="cerrarDetalle()">
+    <section
+      class="modal wide-modal"
+      appDialog
+      (dialogEscape)="cerrarDetalle()"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="detalle-titulo"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="modal-header">
+        <h2 id="detalle-titulo">Detalle y movimientos de inventario</h2>
+        <button
+          type="button"
+          class="icon-button"
+          (click)="cerrarDetalle()"
+          aria-label="Cerrar modal"
+        >
+          <app-icon name="close" />
+        </button>
+      </div>
+
+      <div class="detail-overview">
+        <div class="detail-overview-media">
+          <img
+            [src]="imagen(prod)"
+            (error)="marcarImagenFallida(prod.idProducto)"
+            [alt]="prod.nombreProducto"
+          />
+        </div>
+
+        <div class="detail-overview-content">
+          <div class="detail-overview-header">
+            <h3>{{ prod.nombreProducto }}</h3>
+            @if (prod.descripcion) {
+              <p class="muted">{{ prod.descripcion }}</p>
+            }
+            <span
+              class="badge"
+              [class.confirmada]="prod.estadoProducto === 'ACTIVO'"
+              [class.cancelada]="prod.estadoProducto === 'INACTIVO'"
+            >
+              {{ prod.estadoProducto === "ACTIVO" ? "Activo" : "Inactivo" }}
+            </span>
+          </div>
+
+          <p class="muted">
+            Categoría: <strong>{{ prod.categoriaNombre }}</strong> · ID #{{ prod.idProducto }}
+          </p>
+
+          <div class="detail-stats-grid">
+            <div class="stat-card">
+              <span class="stat-label">Precio de venta</span>
+              <strong class="stat-val stat-price">
+                {{ prod.precioActual | currency: "PEN" : "S/ " }}
+              </strong>
+            </div>
+
+            <div class="stat-card">
+              <span class="stat-label">Existencias actuales</span>
+              <strong class="stat-val" [class.low-stock]="esStockBajo(prod)">
+                {{ prod.stock }} unid.
+              </strong>
+              <small class="stat-sub">Mínimo: {{ prod.stockMinimo }}</small>
+            </div>
+          </div>
+
+          <div class="detail-actions-row">
+            @if (sesion.permite("PRODUCTOS:AJUSTAR_STOCK")) {
+              <button type="button" class="button small primary" (click)="iniciarAjuste(prod)">
+                <app-icon name="plus" />Ajustar existencias
+              </button>
+            }
+            @if (sesion.permite("PRODUCTOS:EDITAR")) {
+              <a
+                class="button small"
+                [routerLink]="['/configuraciones/productos', prod.idProducto, 'editar']"
+                (click)="cerrarDetalle()"
+              >
+                <app-icon name="edit" />Editar datos
+              </a>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="movements-container">
+        <div class="movements-header">
+          <h3>Historial de movimientos</h3>
+          <p class="muted">
+            Registro auditable de entradas, salidas y correcciones de existencias.
+          </p>
+        </div>
+
+        @if (!sesion.permite("PRODUCTOS:VER_MOVIMIENTOS")) {
+          <p class="muted">El historial requiere permiso de consulta.</p>
+        } @else if (cargandoMovimientos()) {
+          <div class="loading-state">
+            <span class="spinner"></span>Cargando historial de movimientos…
+          </div>
+        } @else if (errorMovimientos()) {
+          <p class="error-box" role="alert">{{ errorMovimientos() }}</p>
+        } @else if (movimientos().length === 0) {
+          <div class="empty-movements">
+            <app-icon name="info" />
+            <p>No se registran movimientos de inventario para este producto.</p>
+          </div>
+        } @else {
+          <div class="table-scroll movements-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>FECHA</th>
+                  <th>OPERACIÓN</th>
+                  <th>CANTIDAD</th>
+                  <th>RESULTANTE</th>
+                  <th>RESPONSABLE</th>
+                  <th>OBSERVACIÓN</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (m of movimientos(); track m.idMovimiento) {
+                  <tr>
+                    <td>{{ m.fechaMovimiento }}</td>
+                    <td>
+                      <span
+                        class="badge"
+                        [class.confirmada]="m.signo > 0"
+                        [class.cancelada]="m.signo < 0"
+                      >
+                        {{ m.tipo }}
+                      </span>
+                    </td>
+                    <td>
+                      <strong [class.low-stock]="m.signo < 0">
+                        {{ m.signo > 0 ? "+" : "-" }}{{ m.cantidad }}
+                      </strong>
+                    </td>
+                    <td>{{ m.stockResultante }} unid.</td>
+                    <td>Usuario #{{ m.idUsuario }}</td>
+                    <td>{{ m.observacion }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="button" (click)="cerrarDetalle()">Cerrar</button>
+      </div>
+    </section>
+  </div>
+}
+
+<!-- Modal: Ajuste de existencias de almacén (POST /productos/{id}/ajustes-stock) -->
+@if (ajustandoProducto(); as prod) {
+  <div class="modal-backdrop" (click)="cerrarAjuste()">
+    <section
+      class="modal"
+      appDialog
+      (dialogEscape)="cerrarAjuste()"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ajuste-modal-titulo"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="modal-header">
+        <h2 id="ajuste-modal-titulo">Ajuste de existencias</h2>
+        <button
+          type="button"
+          class="icon-button"
+          [disabled]="ocupadoAjuste()"
+          (click)="cerrarAjuste()"
+          aria-label="Cerrar modal"
+        >
+          <app-icon name="close" />
+        </button>
+      </div>
+
+      <p class="muted">
+        Producto: <strong>{{ prod.nombreProducto }}</strong> (ID #{{ prod.idProducto }})
+      </p>
+
+      @if (ajusteConflicto()) {
+        <div class="error-box" role="alert">
+          <strong>Conflicto de existencias:</strong> {{ ajusteConflicto() }}
+        </div>
+      }
+
+      @if (ajusteError()) {
+        <div class="error-box" role="alert">
+          {{ ajusteError() }}
+        </div>
+      }
+
+      <div class="ajuste-form">
+        <p class="muted">Responsable: {{ sesion.actual()?.usuario }}</p>
+
+        <div class="ajuste-stock-row">
+          <label class="field">
+            Stock observado anterior
+            <input type="number" [value]="ajusteStockAnterior" readonly disabled />
+          </label>
+
+          <label class="field">
+            Stock nuevo *
+            <input
+              type="number"
+              min="0"
+              max="999999999"
+              step="1"
+              [(ngModel)]="ajusteStockNuevo"
+              [disabled]="ocupadoAjuste() || !!ultimoPayloadEnviado"
+              placeholder="0"
+            />
+          </label>
+        </div>
+
+        @if (
+          ajusteStockNuevo !== null &&
+          ajusteStockNuevo !== undefined &&
+          ajusteStockNuevo !== ajusteStockAnterior
+        ) {
+          <div
+            class="diferencia-badge"
+            [class.diferencia-positiva]="ajusteStockNuevo > ajusteStockAnterior"
+            [class.diferencia-negativa]="ajusteStockNuevo < ajusteStockAnterior"
+          >
+            <span>
+              Diferencia:
+              <strong>
+                {{ ajusteStockNuevo > ajusteStockAnterior ? "+" : ""
+                }}{{ ajusteStockNuevo - ajusteStockAnterior }} unidades
+              </strong>
+            </span>
+            <small>
+              ({{
+                ajusteStockNuevo > ajusteStockAnterior
+                  ? "Ajuste de entrada / Ingreso a almacén"
+                  : "Ajuste de salida / Baja de almacén"
+              }})
+            </small>
+          </div>
+        }
+
+        <label class="field">
+          Motivo u observación obligatoria *
+          <textarea
+            rows="3"
+            maxlength="300"
+            [(ngModel)]="ajusteObservacion"
+            [disabled]="ocupadoAjuste() || !!ultimoPayloadEnviado"
+            placeholder="Indica el motivo del ajuste (ej. Ingreso de existencias iniciales, merma justificada, corrección tras inventario físico, etc.)"
+          ></textarea>
+          <small class="align-right">{{ (ajusteObservacion || "").length }}/300 caracteres</small>
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="button"
+          [disabled]="ocupadoAjuste() || !!ultimoPayloadEnviado"
+          (click)="cerrarAjuste()"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="button primary"
+          [disabled]="ocupadoAjuste() || !esAjusteValido()"
+          (click)="guardarAjuste()"
+        >
+          <app-icon name="check" />{{
+            ocupadoAjuste()
+              ? "Guardando…"
+              : ultimoPayloadEnviado
+                ? "Reintentar ajuste"
+                : "Registrar ajuste"
+          }}
+        </button>
+      </div>
+    </section>
+  </div>
+}
+
+@if (categoriasAbiertas()) {
+  <app-categoria-dialog
+    (cerrar)="categoriasAbiertas.set(false)"
+    (creada)="categoriaCreada($event)"
+  />
 }

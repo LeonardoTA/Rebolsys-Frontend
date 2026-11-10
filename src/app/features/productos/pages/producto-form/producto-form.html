@@ -1,6 +1,15 @@
-<a class="button back-link" routerLink="/productos"
-  ><app-icon name="arrow" />Regresar a productos</a
->
+<div class="editor-toolbar">
+  <a class="button back-link" routerLink="/configuraciones/productos"
+    ><app-icon name="arrow" />Regresar a productos</a
+  >
+  <button
+    class="button"
+    [disabled]="guardando()||confirmacionPendiente()"
+    (click)="categoriasAbiertas.set(true)"
+  >
+    <app-icon name="plus" />Crear categoría
+  </button>
+</div>
 @if (cargando()) {
 <div class="loading-state panel">Cargando producto…</div>
 } @else {
@@ -14,6 +23,14 @@
           formControlName="nombreProducto"
           maxlength="100"
           placeholder="Ej. Agua mineral 500 ml" /></label
+      ><label class="field span-2"
+        >Descripción (opcional)<textarea
+          rows="3"
+          maxlength="500"
+          formControlName="descripcion"
+          placeholder="Ej. Agua mineral sin gas, presentación de 500 ml"
+        ></textarea
+        ><small>Hasta 500 caracteres.</small></label
       ><label class="field"
         >Categoría *<select formControlName="idCategoria">
           <option [ngValue]="null">Seleccionar categoría</option>
@@ -27,22 +44,6 @@
           <option value="INACTIVO">Inactivo</option>
         </select></label
       >
-      <div class="field span-2 new-category">
-        <label
-          >Nueva categoría (opcional)<input
-            [value]="nuevaCategoria()"
-            (input)="nuevaCategoria.set($any($event.target).value)"
-            maxlength="30"
-            placeholder="Ej. Bebidas" /></label
-        ><button
-          type="button"
-          class="button small"
-          [disabled]="!nuevaCategoria().trim() || creandoCategoria()"
-          (click)="crearCategoria()"
-        >
-          Crear categoría
-        </button>
-      </div>
       <label class="field"
         >Precio por unidad (S/) *<input
           type="number"
@@ -58,18 +59,23 @@
           step="1"
           formControlName="stockMinimo" /></label
       ><label class="field"
-        >Existencias actuales *<input
+        >{{id()?'Existencias actuales':'Existencias iniciales'}} *<input
           type="number"
           min="0"
           max="999999999"
           step="1"
           formControlName="stock"
       /></label>
+      @if(!id()){
+      <p class="inline-note">Las existencias iniciales se registran con el usuario de la sesión actual.</p>
+      }
       <div class="stock-note">
         <app-icon name="info" />
         <p>
-          Los cambios de existencias generan un ajuste de almacén. Las ventas
-          descuentan stock automáticamente.
+          {{id()?'Para reponer, descontar o corregir existencias utiliza
+          «Ajustar existencias» en el listado.':'Las existencias iniciales se
+          guardan con el producto y registran su entrada de inventario
+          automáticamente.'}} Las ventas descuentan stock automáticamente.
         </p>
       </div>
       <label class="field span-2"
@@ -88,8 +94,12 @@
     <p class="error-box" role="alert">{{ error() }}</p>
     }
     <div class="form-actions">
-      <a class="button" routerLink="/productos">Cancelar</a
-      ><button class="button primary" type="submit" [disabled]="guardando()">
+      <a class="button" routerLink="/configuraciones/productos">Cancelar</a
+      ><button
+        class="button primary"
+        type="submit"
+        [disabled]="guardando()||confirmacionPendiente()"
+      >
         <app-icon name="check" />{{ guardando() ? 'Guardando…' : 'Guardar
         producto' }}
       </button>
@@ -103,6 +113,9 @@
       alt="Vista previa del producto"
     />
     <h3>{{ form.get('nombreProducto')!.value || 'Nombre del producto' }}</h3>
+    @if(form.get('descripcion')!.value){
+    <p class="product-description">{{form.get('descripcion')!.value}}</p>
+    }
     <strong
       >{{ form.get('precioActual')!.value || 0 | currency: 'PEN' : 'S/ '
       }}</strong
@@ -112,4 +125,7 @@
     </p>
   </aside>
 </form>
-}
+} @if(categoriasAbiertas()){<app-categoria-dialog
+  (cerrar)="categoriasAbiertas.set(false)"
+  (creada)="categoriaCreada($event)"
+/>}

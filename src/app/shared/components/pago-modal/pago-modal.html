@@ -27,24 +27,60 @@
       {{ esNueva() ? 'Elige cómo deseas registrar el pago de la estancia.' :
       permiteParcial() ? 'La reserva mostrará el abono y el saldo restante al
       confirmar.' : 'Confirma el importe recibido para registrar la venta y su
-      comprobante.' }}
+      constancia interna.' }}
     </p>
     <div class="payment-total">
       <span>Saldo por pagar</span
       ><strong>{{ total() | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong>
     </div>
+    @if (catalogos(); as datos) {
+    <p class="inline-note">Usuario actual: {{datos.usuarios?.[0]?.nombre}}</p>
+    <label class="field"
+      >Turno de caja<select
+        aria-label="Turno de caja"
+        [ngModel]="turno()"
+        (ngModelChange)="turnoElegido.set($event)"
+        [disabled]="ocupado() || solicitudFijada()"
+      >
+        @for (t of turnos(); track t.idTurno) {
+        <option [ngValue]="t.idTurno">
+          Turno #{{ t.idTurno }} · {{ t.usuario }}
+        </option>
+        } @empty {
+        <option [ngValue]="null">Sin turno abierto</option>
+        }
+      </select></label
+    >
+    <label class="field"
+      >Forma de pago<select
+        aria-label="Forma de pago"
+        [ngModel]="formaPago()?.id"
+        (ngModelChange)="formaElegida.set($event)"
+        [disabled]="ocupado() || solicitudFijada()"
+      >
+        @for (p of datos.pagos; track p.id) {
+        <option [ngValue]="p.id">{{ p.nombre }}</option>
+        }
+      </select></label
+    >
+    @if (!turnos().length) {
+    <p class="inline-note">
+      Abre un turno de caja para registrar un pago. Puedes guardar la reserva y
+      pagar después.
+    </p>
+    } } @else {
     <div class="payment-method">
       <span class="check-round"><app-icon name="check" /></span>
       <div><strong>Efectivo</strong><small>Pago en recepción</small></div>
       <app-icon name="wallet" />
     </div>
-    @if (permiteParcial()) {
+    } @if (permiteParcial()) {
     <label class="partial-choice"
       ><input
         type="checkbox"
         [ngModel]="parcial()"
         (ngModelChange)="parcial.set($event)"
-        [disabled]="ocupado()"
+        [disabled]="ocupado() || solicitudFijada()"
       />Registrar un pago parcial</label
     >
     } @if (parcial()) {
@@ -56,10 +92,10 @@
         step="0.01"
         [ngModel]="montoParcial()"
         (ngModelChange)="montoParcial.set($event)"
-        [disabled]="ocupado()"
+        [disabled]="ocupado() || solicitudFijada()"
         placeholder="0.00"
     /></label>
-    }
+    } @if (efectivo()) {
     <label class="field"
       >Efectivo recibido
       <div class="money-input">
@@ -70,7 +106,7 @@
           step="0.01"
           [ngModel]="recibido()"
           (ngModelChange)="recibido.set($event)"
-          [disabled]="ocupado()"
+          [disabled]="ocupado() || solicitudFijada()"
           placeholder="0.00"
           autofocus
         /></div
@@ -79,6 +115,15 @@
       <span>Vuelto</span
       ><strong>{{ vuelto() | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong>
     </div>
+    } @else {
+    <label class="field"
+      >Número de operación (opcional)<input
+        maxlength="50"
+        [ngModel]="numeroOperacion()"
+        (ngModelChange)="numeroOperacion.set($event)"
+        [disabled]="ocupado() || solicitudFijada()"
+    /></label>
+    }
     <div class="change-line">
       <span>Saldo después de este pago</span
       ><strong>{{ saldo() | currency: 'PEN' : 'S/ ' : '1.2-2' }}</strong>
@@ -89,18 +134,13 @@
     <button
       class="button primary full"
       [disabled]="ocupado() || !valido()"
-      (click)="
-        confirmar.emit({
-          forma: 'EFECTIVO',
-          recibido: recibido(),
-          monto: monto(),
-        })
-      "
+      (click)="enviar()"
     >
-      <app-icon name="check" />{{ ocupado() ? 'Registrando…' : 'Confirmar pago
-      en efectivo' }}
+      <app-icon name="check" />{{ ocupado() ? 'Registrando…' : solicitudFijada()
+      ? 'Reintentar el mismo pago' : efectivo() ? 'Confirmar pago en efectivo' :
+      'Confirmar pago' }}
     </button>
-    @if (esNueva()) {
+    @if (esNueva() && puedePosponer()) {
     <button
       class="button subtle full"
       [disabled]="ocupado()"
@@ -110,9 +150,11 @@
     </button>
     }
     <p class="payment-footnote">
-      <app-icon name="info" />{{ esNueva() ? 'Si pagas después, tu reserva se
-      guardará con el cobro pendiente.' : 'El comprobante generado es interno y
-      no tiene valor tributario.' }}
+      <app-icon name="info" />{{ catalogos() ? 'El abono se registra en la
+      cuenta y en el turno de caja. El saldo debe cancelarse antes del
+      check-out.' : esNueva() ? 'Si pagas después, tu reserva se guardará con el
+      cobro pendiente.' : 'El comprobante generado es interno y no tiene valor
+      tributario.' }}
     </p>
   </section>
 </div>

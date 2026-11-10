@@ -6,6 +6,21 @@
 .back-link {
   margin-bottom: 22px;
 }
+.editor-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+.editor-toolbar .back-link {
+  margin-bottom: 0;
+}
+.product-description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .product-editor {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;

@@ -192,11 +192,14 @@ select:focus-visible {
   gap: 9px;
   font-size: 15px;
   position: relative;
+  min-width: 0;
 }
 .field input,
+.field textarea,
 .field select,
 select {
   width: 100%;
+  min-width: 0;
   min-height: 42px;
   border: 1px solid #a4a4ad;
   background: #f3f1ff;
@@ -204,15 +207,17 @@ select {
   padding: 9px 12px;
   color: var(--ink);
 }
-.field input::placeholder {
+.field input::placeholder,.field textarea::placeholder {
   color: #85858e;
 }
 .field input:disabled,
+.field textarea:disabled,
 .field select:disabled {
   background: #f0f0f0;
   color: #555;
 }
 .field input.ng-invalid.ng-touched,
+.field textarea.ng-invalid.ng-touched,
 .field select.ng-invalid.ng-touched {
   border-color: #db3535;
 }
@@ -525,6 +530,12 @@ td small {
   }
   .modal-backdrop {
     padding: 14px;
+  }
+  .button.full {
+    white-space: normal;
+  }
+  .payment-total {
+    flex-wrap: wrap;
   }
   .toast {
     left: 14px;
